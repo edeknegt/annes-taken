@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(findstr -i sql)",
+      "Bash(psql --version)",
+      "Bash(curl -s -o /dev/null -w \"Homepage: %{http_code}\\\\n\" http://localhost:3099/)",
+      "Bash(curl -s -o /dev/null -w \"Recepten: %{http_code}\\\\n\" http://localhost:3099/recepten)",
+      "Bash(npm install *)",
+      "Bash(find / -iname \"*ea53e090*\" 2>/dev/null)",
+      "Read(//c//**)"
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#FFD633"/>
+  <rect x="20" y="20" width="472" height="472" rx="96" fill="#FFFBE6"/>
+  <!-- Cooking pot body -->
+  <rect x="136" y="220" width="240" height="160" rx="32" fill="#FFD633"/>
+  <!-- Pot rim -->
+  <rect x="116" y="204" width="280" height="32" rx="16" fill="#E6BC1A"/>
+  <!-- Pot handles -->
+  <rect x="88" y="210" width="40" height="20" rx="10" fill="#BF9A14"/>
+  <rect x="384" y="210" width="40" height="20" rx="10" fill="#BF9A14"/>
+  <!-- Lid knob -->
+  <rect x="232" y="176" width="48" height="20" rx="10" fill="#BF9A14"/>
+  <!-- Lid arc -->
+  <path d="M176 208 Q256 160 336 208" stroke="#E6BC1A" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <!-- Steam lines -->
+  <path d="M200 160 Q192 132 200 108" stroke="#FFE066" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <path d="M256 148 Q248 120 256 96" stroke="#FFE066" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <path d="M312 160 Q304 132 312 108" stroke="#FFE066" stroke-width="10" fill="none" stroke-linecap="round"/>
+</svg>

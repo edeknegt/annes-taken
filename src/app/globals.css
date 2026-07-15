@@ -1,26 +1,178 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Raleway", system-ui, sans-serif;
+
+  --color-mint-50: #F4FBF7;
+  --color-mint-100: #E1F5E8;
+  --color-mint-200: #B3E3C6;
+  --color-mint-300: #9CD9B6;
+  --color-mint-400: #8EC8A5;
+  --color-mint-500: #5FAE85;
+  --color-mint-600: #3E8F68;
+  --color-mint-700: #2A7350;
+  --color-mint-800: #165C4A;
+  --color-mint-900: #124A3B;
+  --color-mint-950: #0B2E25;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: #F4FBF7;
+  --foreground: #1a1a1a;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Eliminate touch delay and speed up transitions on interactive elements */
+a, button, [role="button"], input, select, textarea {
+  touch-action: manipulation;
+}
+
+button, a, [role="button"] {
+  cursor: pointer;
+}
+
+/* Touch devices: instant visual feedback */
+@media (hover: none) {
+  button, a, [role="button"] {
+    transition-duration: 0ms !important;
+  }
+  button:active, a:active, [role="button"]:active {
+    opacity: 0.7;
+  }
+}
+
+
+/* Custom component classes */
+@layer components {
+  .page-title {
+    @apply text-2xl font-bold text-gray-900;
+  }
+  .section-title {
+    @apply text-lg font-semibold text-gray-800;
+  }
+  .form-group {
+    @apply space-y-4;
+  }
+  .form-row {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+  }
+  .form-actions {
+    @apply flex justify-end gap-3;
+  }
+}
+
+/* PIN digit animation */
+@keyframes fade-in {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out;
+}
+
+/* Toast slide-up animation */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(1rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up 0.2s ease-out;
+}
+
+/* Loading shimmer on avatar */
+@keyframes shimmer {
+  0% { background-position: -150% 0; }
+  100% { background-position: 150% 0; }
+}
+.loading-avatar {
+  position: relative;
+  overflow: hidden;
+}
+.loading-avatar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(95, 174, 133, 0.4) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Verberg de nav-fade als er een bottom-sheet open is — anders
+   schemert de gradient door de onderkant van de sheet heen. */
+body[data-sheet-open] .nav-fade {
+  display: none;
+}
+
+/* Soft breathing animation for passive affordances */
+@keyframes breathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.04); }
+}
+.breathe {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+/* Safe area for iPhone home indicator.
+   Gebruiken de helft van de inset zodat de nav dichter bij de onderrand zit
+   maar de home-indicator niet overlapt. */
+.safe-area-bottom {
+  padding-bottom: max(calc(env(safe-area-inset-bottom, 0px) * 0.5), 4px);
+}
+
+/* Hide mobile nav when a bottom sheet is open */
+body[data-sheet-open] .mobile-nav {
+  display: none;
+}
+
+/* Verberg mobile nav + fade zodra het software-keyboard open is, zodat
+   iOS Safari de pill niet boven het toetsenbord pinnt. */
+body[data-keyboard-open] .mobile-nav,
+body[data-keyboard-open] .nav-fade {
+  display: none;
+}
+
+/* Hide scrollbar */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom scrollbar */
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-mint-300) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--color-mint-300);
+    border-radius: 3px;
+  }
+}
+
+/* Verberg fixed FABs zolang er een BottomSheet open is. De BottomSheet
+   plaatst `data-sheet-open` op <body>; FABs die dit attribuut volgen
+   krijgen `data-hide-on-sheet` zodat de filter-sheet niet wordt overlapt. */
+body[data-sheet-open] [data-hide-on-sheet] {
+  display: none;
 }

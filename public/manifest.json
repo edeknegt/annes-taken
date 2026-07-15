@@ -1,0 +1,21 @@
+{
+  "name": "Anne's taken",
+  "short_name": "Anne's taken",
+  "description": "Boodschappenlijst van Anne",
+  "start_url": "/lijst",
+  "display": "standalone",
+  "background_color": "#F4FBF7",
+  "theme_color": "#5FAE85",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
