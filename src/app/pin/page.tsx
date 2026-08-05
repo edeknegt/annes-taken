@@ -30,15 +30,7 @@ export default function PinPage() {
           requestAnimationFrame(() => inputRef.current?.focus())
           return
         }
-        // Warm de SW-cache met /lijst voordat we navigeren: een hard fetch
-        // hier zorgt dat de boodschappenpagina offline beschikbaar is, ook
-        // als Anne client-side rondnavigeert en /lijst nooit hard opent.
-        try {
-          await fetch('/lijst', { credentials: 'include', cache: 'reload' })
-        } catch {
-          // negeer — als 'ie nu niet lukt, doet de SW het bij eerstvolgende visit
-        }
-        router.replace('/lijst')
+        router.replace('/huishouden')
         router.refresh()
       })
     },

@@ -131,14 +131,9 @@ body[data-sheet-open] .nav-fade {
   padding-bottom: max(calc(env(safe-area-inset-bottom, 0px) * 0.5), 4px);
 }
 
-/* Hide mobile nav when a bottom sheet is open */
-body[data-sheet-open] .mobile-nav {
-  display: none;
-}
-
-/* Verberg mobile nav + fade zodra het software-keyboard open is, zodat
-   iOS Safari de pill niet boven het toetsenbord pinnt. */
-body[data-keyboard-open] .mobile-nav,
+/* De mobile-nav mag nooit verdwijnen of verplaatsen — niet bij een open
+   bottom-sheet, niet bij een open software-keyboard. Alleen de decoratieve
+   fade erachter wordt dan verborgen. */
 body[data-keyboard-open] .nav-fade {
   display: none;
 }

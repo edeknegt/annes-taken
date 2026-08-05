@@ -4,7 +4,7 @@ import { useRef, useState, useLayoutEffect, useEffect, useSyncExternalStore } fr
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { Home, ShoppingCart, Settings } from 'lucide-react'
+import { Home, Briefcase, ShoppingBag, Gift, CircleEllipsis } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   type TabKey,
@@ -21,9 +21,11 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { tab: 'home', label: 'Home', href: '/', icon: Home },
-  { tab: 'lijst', label: 'Boodschappen', href: '/lijst', icon: ShoppingCart },
-  { tab: 'instellingen', label: 'Instellingen', href: '/categorieen', icon: Settings },
+  { tab: 'huishouden', label: 'Huishouden', href: '/huishouden', icon: Home },
+  { tab: 'werk', label: 'Werk', href: '/werk', icon: Briefcase },
+  { tab: 'inkopen', label: 'Inkopen', href: '/inkopen', icon: ShoppingBag },
+  { tab: 'cadeaus', label: 'Cadeaus', href: '/cadeaus', icon: Gift },
+  { tab: 'overig', label: 'Overig', href: '/overig', icon: CircleEllipsis },
 ]
 
 export function Sidebar() {
@@ -88,7 +90,7 @@ export function Sidebar() {
       {/* Mobile bottom navigation bar (floating pill, WhatsApp-style) */}
       <nav
         className="mobile-nav lg:hidden fixed left-3 right-3 z-40 rounded-full bg-white/85 backdrop-blur-md border border-gray-200 shadow-lg shadow-mint-900/20"
-        style={{ bottom: 'max(env(safe-area-inset-bottom, 0px), 0.5rem)' }}
+        style={{ bottom: 'calc(max(env(safe-area-inset-bottom, 0px), 0.5rem) + var(--keyboard-inset, 0px))' }}
       >
         <div className="relative flex items-stretch justify-around h-14 px-1">
           {pill && (
@@ -119,10 +121,10 @@ export function Sidebar() {
                   active ? 'text-mint-800' : 'text-gray-500'
                 )}
               >
-                <Icon className="h-4.5 w-4.5" />
+                <Icon className="h-4 w-4" />
                 <span
                   className={cn(
-                    'text-[10px] leading-none',
+                    'text-[8.5px] leading-[1.1] text-center px-0.5',
                     active ? 'font-bold' : 'font-medium'
                   )}
                 >

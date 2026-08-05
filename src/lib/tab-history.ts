@@ -1,8 +1,13 @@
 'use client'
 
-export type TabKey = 'home' | 'lijst' | 'instellingen'
+import type { TaskCategory } from './types'
 
-const STORAGE_KEY = 'tab-history-v1'
+export type TabKey = TaskCategory
+
+// v2: routes werden platgetrokken van /taken/[categorie] en /categorieen naar
+// /[categorie] en /instellingen. Nieuwe key zodat oude, opgeslagen paden naar
+// niet meer bestaande routes niet per ongeluk worden herbruikt.
+const STORAGE_KEY = 'tab-history-v2'
 
 type State = Partial<Record<TabKey, string>>
 
@@ -51,8 +56,7 @@ export function getServerSnapshot(): State {
 }
 
 export function detectTab(pathname: string): TabKey | null {
-  if (pathname === '/') return 'home'
-  if (pathname.startsWith('/lijst')) return 'lijst'
-  if (pathname.startsWith('/categorieen')) return 'instellingen'
+  const match = pathname.match(/^\/([^/]+)/)
+  if (match) return match[1] as TabKey
   return null
 }

@@ -9,7 +9,7 @@ const raleway = Raleway({
 
 export const metadata: Metadata = {
   title: "Anne's taken",
-  description: "Boodschappenlijst van Anne",
+  description: "Taken van Anne",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

@@ -1,8 +1,8 @@
 {
   "name": "Anne's taken",
   "short_name": "Anne's taken",
-  "description": "Boodschappenlijst van Anne",
-  "start_url": "/lijst",
+  "description": "Taken van Anne",
+  "start_url": "/huishouden",
   "display": "standalone",
   "background_color": "#F4FBF7",
   "theme_color": "#5FAE85",
