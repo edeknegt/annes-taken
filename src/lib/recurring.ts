@@ -76,6 +76,11 @@ export function formatDayMonth(day: number, month: number): string {
   return long ? `${day} ${long}` : ''
 }
 
+export function formatDayMonthYear(day: number, month: number, year: number): string {
+  const base = formatDayMonth(day, month)
+  return base ? `${base} ${year}` : ''
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Bepaal wanneer een regel eerstvolgend "due" is.
 //   fixed            -> vast patroon: elke N dag/week/maand, optioneel op
@@ -140,7 +145,10 @@ export function nextDueAt(
     if (rule.recur_unit === 'month' && rule.day_of_month != null) {
       return nextDayOfMonth(today, rule.day_of_month)
     }
-    return today
+    // Geen weekdag/dag-van-de-maand gekozen (bv. 'day'-eenheid, of een
+    // regel van vóór deze functie zonder patroon) — val terug op
+    // first_due_at als die gezet is, anders meteen due.
+    return rule.first_due_at ? startOfDay(new Date(rule.first_due_at)) : today
   }
 
   if (rule.rule_type === 'after_completion') {
@@ -245,7 +253,7 @@ export function describeRule(rule: TaskRule): string {
   if (rule.rule_type === 'workday') {
     if (!rule.first_due_at) return ''
     const d = new Date(rule.first_due_at)
-    return formatDayMonth(d.getDate(), d.getMonth() + 1)
+    return formatDayMonthYear(d.getDate(), d.getMonth() + 1, d.getFullYear())
   }
   return ''
 }

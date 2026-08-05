@@ -131,9 +131,9 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
   // Voorbije werkdagen blijven wél in de database (nodig als ankerpunt voor
   // 'after_workday'), maar verdwijnen uit dit overzicht zodra de datum
   // geweest is.
-  const workdayRules = rules.filter(
-    r => r.rule_type === 'workday' && !!r.first_due_at && r.first_due_at >= todayIso()
-  )
+  const workdayRules = rules
+    .filter(r => r.rule_type === 'workday' && !!r.first_due_at && r.first_due_at >= todayIso())
+    .sort((a, b) => (a.first_due_at as string).localeCompare(b.first_due_at as string))
   const genericRules = rules.filter(r => r.rule_type !== 'workday')
 
   const openNew = () => {
