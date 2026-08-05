@@ -12,8 +12,5 @@ export function taskCategoryLabel(category: TaskCategory): string {
   return TASK_CATEGORIES.find(c => c.value === category)?.label ?? category
 }
 
-// Categorieën die zelf terugkerende taakregels ondersteunen. Inkopen en
-// Overig hebben geen taakregels nodig — daar voeg je gewoon losse taken toe.
-export const TASK_RULE_CATEGORIES = TASK_CATEGORIES.filter(
-  c => c.value === 'huishouden' || c.value === 'werk' || c.value === 'cadeaus'
-)
+// Alle categorieën ondersteunen terugkerende taakregels.
+export const TASK_RULE_CATEGORIES = TASK_CATEGORIES
