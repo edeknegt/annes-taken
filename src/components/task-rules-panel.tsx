@@ -80,9 +80,14 @@ interface TaskRulesPanelProps {
   // Alleen relevant voor Werk: welke van de twee tabbladen dit is. Bepaalt
   // welk blok getoond wordt en waar de FAB naartoe opent.
   section?: 'rules' | 'workdays'
+  // Na het opslaan/verwijderen/(de)activeren van een regel: laat de Taken-
+  // pagina direct opnieuw checken of er (bv. door een net toegevoegde
+  // verjaardag binnen de lead time) meteen een taak gematerialiseerd moet
+  // worden, in plaats van pas bij een volgende paginalading.
+  onRulesChanged?: () => void
 }
 
-export function TaskRulesPanel({ category, section = 'rules' }: TaskRulesPanelProps) {
+export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: TaskRulesPanelProps) {
   const supabase = createClient()
 
   const [rules, setRules] = useState<TaskRule[]>([])
@@ -162,7 +167,11 @@ export function TaskRulesPanel({ category, section = 'rules' }: TaskRulesPanelPr
       recur_unit:
         isYearly || isWorkday || form.rule_type === 'after_workday' ? null : form.recur_unit,
       first_due_at:
-        form.rule_type === 'after_completion' || isWorkday ? form.first_due_at : null,
+        form.rule_type === 'after_completion' || form.rule_type === 'fixed'
+          ? (form.first_due_at < todayIso() ? todayIso() : form.first_due_at)
+          : isWorkday
+            ? form.first_due_at
+            : null,
       day_of_month: isYearly ? Math.min(31, Math.max(1, form.day_of_month)) : null,
       month: isYearly ? Math.min(12, Math.max(1, form.month)) : null,
       shift_type: isWorkday ? form.shift_type : null,
@@ -180,12 +189,14 @@ export function TaskRulesPanel({ category, section = 'rules' }: TaskRulesPanelPr
     setSaving(false)
     setEditorOpen(false)
     fetchRules()
+    onRulesChanged?.()
   }
 
   const toggleActive = async (rule: TaskRule) => {
     const next = !rule.active
     setRules(prev => prev.map(r => (r.id === rule.id ? { ...r, active: next } : r)))
     await supabase.from('task_rules').update({ active: next }).eq('id', rule.id)
+    onRulesChanged?.()
   }
 
   const deleteRule = async () => {
@@ -193,6 +204,7 @@ export function TaskRulesPanel({ category, section = 'rules' }: TaskRulesPanelPr
     await supabase.from('task_rules').delete().eq('id', deleteConfirm.id)
     setRules(prev => prev.filter(r => r.id !== deleteConfirm.id))
     setDeleteConfirm(null)
+    onRulesChanged?.()
   }
 
   if (loading) {
@@ -382,7 +394,7 @@ export function TaskRulesPanel({ category, section = 'rules' }: TaskRulesPanelPr
                 type="date"
                 value={form.first_due_at}
                 onChange={(e) => setForm(prev => ({ ...prev, first_due_at: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
+                className="w-full min-w-0 max-w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
               />
             </div>
 
@@ -423,7 +435,7 @@ export function TaskRulesPanel({ category, section = 'rules' }: TaskRulesPanelPr
                   if (!m || !d) return
                   setForm(prev => ({ ...prev, month: m, day_of_month: d }))
                 }}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
+                className="w-full min-w-0 max-w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
               />
             </div>
 
@@ -564,16 +576,20 @@ export function TaskRulesPanel({ category, section = 'rules' }: TaskRulesPanelPr
             </div>
           )}
 
-          {form.rule_type === 'after_completion' && (
+          {(form.rule_type === 'after_completion' || form.rule_type === 'fixed') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Eerste keer op
+                Eerste datum
               </label>
               <input
                 type="date"
+                min={todayIso()}
                 value={form.first_due_at}
-                onChange={(e) => setForm(prev => ({ ...prev, first_due_at: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
+                onChange={(e) => setForm(prev => ({
+                  ...prev,
+                  first_due_at: e.target.value < todayIso() ? todayIso() : e.target.value,
+                }))}
+                className="w-full min-w-0 max-w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
               />
             </div>
           )}

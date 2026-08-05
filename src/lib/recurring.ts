@@ -45,7 +45,8 @@ function formatDayMonth(day: number, month: number): string {
 // Bepaal wanneer een regel eerstvolgend "due" is.
 //   fixed            -> vaste cadans vanaf het moment van materialiseren
 //                       (last_triggered_at), los van of de vorige taak is
-//                       afgevinkt.
+//                       afgevinkt. Vóór de eerste materialisatie geldt een
+//                       optionele first_due_at (anders: meteen due).
 //   after_completion -> N eenheden na het afvinken van de vorige taak
 //                       (last_triggered_at wordt dan gezet op het afvink-
 //                       moment, niet op materialisatie-moment). Vóór de
@@ -68,7 +69,9 @@ export function nextDueAt(
 
   if (rule.rule_type === 'fixed') {
     if (!rule.recur_unit) return null
-    if (!rule.last_triggered_at) return today
+    if (!rule.last_triggered_at) {
+      return rule.first_due_at ? startOfDay(new Date(rule.first_due_at)) : today
+    }
     const last = startOfDay(new Date(rule.last_triggered_at))
     return addUnits(last, rule.recur_unit, rule.interval_n)
   }
@@ -86,9 +89,16 @@ export function nextDueAt(
     if (!rule.month || !rule.day_of_month) return null
 
     if (!rule.last_triggered_at) {
-      const dueThisYear = new Date(today.getFullYear(), rule.month - 1, rule.day_of_month)
-      dueThisYear.setDate(dueThisYear.getDate() - BIRTHDAY_LEAD_DAYS)
-      if (dueThisYear.getTime() >= today.getTime()) return dueThisYear
+      // Vergelijk met de verjaardag zelf, niet met de (al -14 dagen
+      // verschoven) due-datum — anders wordt een verjaardag die binnen de
+      // lead time ligt (bv. over 12 dagen) onterecht als "al gehad" gezien
+      // en pas volgend jaar weer opgevoerd, in plaats van meteen.
+      const birthdayThisYear = new Date(today.getFullYear(), rule.month - 1, rule.day_of_month)
+      if (birthdayThisYear.getTime() >= today.getTime()) {
+        const dueThisYear = new Date(birthdayThisYear)
+        dueThisYear.setDate(dueThisYear.getDate() - BIRTHDAY_LEAD_DAYS)
+        return dueThisYear
+      }
       const dueNextYear = new Date(today.getFullYear() + 1, rule.month - 1, rule.day_of_month)
       dueNextYear.setDate(dueNextYear.getDate() - BIRTHDAY_LEAD_DAYS)
       return dueNextYear

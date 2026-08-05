@@ -22,7 +22,8 @@ $$ LANGUAGE plpgsql;
 -- rule_type bepaalt welke velden van toepassing zijn:
 --   fixed            -> vaste cadans, los van afvinken: interval_n + recur_unit
 --                       (dag/week/maand), volgende due-datum = laatste keer
---                       gematerialiseerd + interval_n * recur_unit.
+--                       gematerialiseerd + interval_n * recur_unit. Optioneel
+--                       een first_due_at voor de allereerste keer.
 --   after_completion -> interval_n + recur_unit, maar de klok gaat pas lopen
 --                       zodra de vorige taak wordt afgevinkt. first_due_at is
 --                       de eerste due-datum, voordat er ooit is afgevinkt.
@@ -56,7 +57,7 @@ CREATE TABLE task_rules (
     created_at        timestamptz DEFAULT now(),
 
     CHECK (
-        (rule_type = 'fixed'            AND recur_unit IS NOT NULL AND day_of_month IS NULL AND month IS NULL AND first_due_at IS NULL AND shift_type IS NULL)
+        (rule_type = 'fixed'            AND recur_unit IS NOT NULL AND day_of_month IS NULL AND month IS NULL AND shift_type IS NULL)
      OR (rule_type = 'after_completion' AND recur_unit IS NOT NULL AND day_of_month IS NULL AND month IS NULL AND shift_type IS NULL)
      OR (rule_type = 'yearly'           AND day_of_month BETWEEN 1 AND 31 AND month BETWEEN 1 AND 12 AND recur_unit IS NULL AND first_due_at IS NULL AND shift_type IS NULL)
      OR (rule_type = 'workday'          AND first_due_at IS NOT NULL AND shift_type IS NOT NULL AND recur_unit IS NULL AND day_of_month IS NULL AND month IS NULL)

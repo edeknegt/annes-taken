@@ -32,6 +32,11 @@ export function Sidebar() {
   const pathname = usePathname()
   const itemRefs = useRef<Array<HTMLAnchorElement | null>>([])
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
+  // Los van CSS :active — in standalone PWA-webviews op iOS is dat pseudo-
+  // element onbetrouwbaar (verschijnt vaak niet of pas na de navigatie), dus
+  // sturen we de "ingedrukt"-status zelf via pointer events voor een
+  // gegarandeerde directe visuele reactie op een tik.
+  const [pressedTab, setPressedTab] = useState<TabKey | null>(null)
   const tabHistory = useSyncExternalStore(
     subscribeTabHistory,
     getTabHistorySnapshot,
@@ -116,9 +121,14 @@ export function Sidebar() {
                   itemRefs.current[i] = el
                 }}
                 href={hrefFor(item)}
+                onPointerDown={() => setPressedTab(item.tab)}
+                onPointerUp={() => setPressedTab(null)}
+                onPointerLeave={() => setPressedTab(null)}
+                onPointerCancel={() => setPressedTab(null)}
                 className={cn(
                   'relative z-10 flex flex-col items-center justify-center gap-0.5 flex-1 mx-0.5 rounded-full py-1.5 transition-colors',
-                  active ? 'text-mint-800' : 'text-gray-500'
+                  active ? 'text-mint-800' : 'text-gray-500',
+                  pressedTab === item.tab && 'opacity-60'
                 )}
               >
                 <Icon className="h-4 w-4" />

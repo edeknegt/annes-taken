@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { useParams, useRouter } from 'next/navigation'
 import { Plus, Check, X, Trash2, Repeat } from 'lucide-react'
 import {
@@ -309,9 +310,15 @@ export default function TakenCategoryPage() {
   }
 
   const activateAdd = () => {
-    setNewTaskName('')
-    setAddActive(true)
-    requestAnimationFrame(() => newTaskInputRef.current?.focus())
+    // flushSync + synchrone focus() (i.p.v. requestAnimationFrame) houdt de
+    // focus-aanroep in dezelfde synchrone user-gesture-keten als de tik op de
+    // FAB — anders opent op mobiel (vooral iOS) het invoerveld wel, maar
+    // verschijnt het toetsenbord niet automatisch.
+    flushSync(() => {
+      setNewTaskName('')
+      setAddActive(true)
+    })
+    newTaskInputRef.current?.focus()
   }
 
   const deactivateAdd = () => {
@@ -421,11 +428,11 @@ export default function TakenCategoryPage() {
 
       {view === 'taakregels' && hasRules ? (
         <div className="pb-24">
-          <TaskRulesPanel category={category} section="rules" />
+          <TaskRulesPanel category={category} section="rules" onRulesChanged={fetchData} />
         </div>
       ) : view === 'werkdagen' && isWerk ? (
         <div className="pb-24">
-          <TaskRulesPanel category={category} section="workdays" />
+          <TaskRulesPanel category={category} section="workdays" onRulesChanged={fetchData} />
         </div>
       ) : (
         <>
