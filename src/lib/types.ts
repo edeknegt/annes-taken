@@ -30,6 +30,7 @@ export interface TaskRule {
   day_of_month: number | null
   weekday: number | null
   month: number | null
+  birth_year: number | null
   shift_type: ShiftType | null
   gift: boolean
   card: boolean

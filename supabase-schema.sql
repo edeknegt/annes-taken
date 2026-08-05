@@ -33,7 +33,9 @@ $$ LANGUAGE plpgsql;
 --                       verjaardagen (categorie 'cadeaus'), komt 14 dagen
 --                       vóór de datum als taak op. gift/card bepalen of er
 --                       dan een losse "Cadeau <naam>"- en/of
---                       "Kaart <naam>"-taak wordt aangemaakt.
+--                       "Kaart <naam>"-taak wordt aangemaakt. birth_year is
+--                       optioneel, puur ter weergave (heeft geen invloed op
+--                       de jaarlijkse herhaling).
 --   workday          -> eenmalige Dienst/Spreekuur (categorie 'werk') op
 --                       first_due_at + shift_type. Wordt na materialiseren
 --                       gedeactiveerd (geen herhaling), blijft als historie
@@ -52,6 +54,7 @@ CREATE TABLE task_rules (
     day_of_month      integer,
     weekday           integer     CHECK (weekday BETWEEN 0 AND 6),
     month             integer,
+    birth_year        integer,
     shift_type        text        CHECK (shift_type IN ('dienst', 'spreekuur')),
     gift              boolean     NOT NULL DEFAULT true,
     card              boolean     NOT NULL DEFAULT true,

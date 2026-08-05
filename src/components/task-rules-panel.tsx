@@ -12,6 +12,7 @@ import {
   SHIFT_TYPE_LABEL,
   WEEKDAY_OPTIONS,
   FIXED_DAY_OF_MONTH_OPTIONS,
+  nextYearlyOccurrence,
 } from '@/lib/recurring'
 import { HARDCODED_GIFT_TASKS } from '@/lib/gift-holidays'
 import { taskCategoryLabel } from '@/lib/tasks'
@@ -28,6 +29,7 @@ interface RuleForm {
   day_of_month: number
   weekday: number
   month: number
+  birth_year: number
   shift_type: ShiftType
   gift: boolean
   card: boolean
@@ -47,6 +49,7 @@ function makeDefaultForm(category: TaskCategory): RuleForm {
     day_of_month: 1,
     weekday: 0,
     month: 1,
+    birth_year: 2000,
     shift_type: 'dienst',
     gift: true,
     card: true,
@@ -66,6 +69,7 @@ function ruleToForm(r: TaskRule): RuleForm {
     day_of_month: r.day_of_month ?? 1,
     weekday: r.weekday ?? 0,
     month: r.month ?? 1,
+    birth_year: r.birth_year ?? 2000,
     shift_type: r.shift_type ?? 'dienst',
     gift: r.gift,
     card: r.card,
@@ -73,9 +77,6 @@ function ruleToForm(r: TaskRule): RuleForm {
   }
 }
 
-// Verjaardagen gebruiken één datum-veld; jaar is niet relevant voor de
-// jaarlijkse herhaling, dus we hangen 'm op een neutraal (schrikkel-)jaar.
-const BIRTHDATE_PLACEHOLDER_YEAR = 2000
 const pad2 = (n: number) => String(n).padStart(2, '0')
 
 const UNIT_LABEL: Record<RecurUnit, { singular: string; plural: string }> = {
@@ -104,10 +105,10 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [form, setForm] = useState<RuleForm>(makeDefaultForm(category))
-  // Los van `form` bijgehouden zodat het jaartal dat je in de datumkiezer
-  // instelt niet elke render teruggezet wordt naar het placeholder-jaar —
-  // alleen maand + dag daaruit worden opgeslagen, het jaar is decoratief.
-  const [birthDateInput, setBirthDateInput] = useState(`${BIRTHDATE_PLACEHOLDER_YEAR}-01-01`)
+  // Los van `form` bijgehouden zodat de datumkiezer een geldige, volledige
+  // datumstring behoudt; dag/maand/jaar worden er bij elke wijziging uit
+  // overgenomen in `form`.
+  const [birthDateInput, setBirthDateInput] = useState('2000-01-01')
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<TaskRule | null>(null)
   const nameRef = useRef<HTMLInputElement>(null)
@@ -134,6 +135,15 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
   const workdayRules = rules
     .filter(r => r.rule_type === 'workday' && !!r.first_due_at && r.first_due_at >= todayIso())
     .sort((a, b) => (a.first_due_at as string).localeCompare(b.first_due_at as string))
+  // Verjaardagen chronologisch vanaf vandaag (dus evt. eind-jaar → begin-
+  // volgend-jaar), niet op datum van toevoegen.
+  const giftRules = [...rules]
+    .filter(r => r.rule_type === 'yearly')
+    .sort((a, b) => {
+      const da = a.day_of_month && a.month ? nextYearlyOccurrence(a.day_of_month, a.month).getTime() : Infinity
+      const db = b.day_of_month && b.month ? nextYearlyOccurrence(b.day_of_month, b.month).getTime() : Infinity
+      return da - db
+    })
   const genericRules = rules.filter(r => r.rule_type !== 'workday')
 
   const openNew = () => {
@@ -141,7 +151,7 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
       ...makeDefaultForm(category),
       rule_type: isGifts ? 'yearly' : 'fixed',
     })
-    setBirthDateInput(`${BIRTHDATE_PLACEHOLDER_YEAR}-01-01`)
+    setBirthDateInput('2000-01-01')
     setEditorOpen(true)
     setTimeout(() => nameRef.current?.focus(), 50)
   }
@@ -158,7 +168,7 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
 
   const openEdit = (rule: TaskRule) => {
     setForm(ruleToForm(rule))
-    setBirthDateInput(`${BIRTHDATE_PLACEHOLDER_YEAR}-${pad2(rule.month ?? 1)}-${pad2(rule.day_of_month ?? 1)}`)
+    setBirthDateInput(`${rule.birth_year ?? 2000}-${pad2(rule.month ?? 1)}-${pad2(rule.day_of_month ?? 1)}`)
     setEditorOpen(true)
   }
 
@@ -195,6 +205,7 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
           : null,
       weekday: isFixed && form.recur_unit === 'week' ? Math.min(6, Math.max(0, form.weekday)) : null,
       month: isYearly ? Math.min(12, Math.max(1, form.month)) : null,
+      birth_year: isYearly ? form.birth_year : null,
       shift_type: isWorkday ? form.shift_type : null,
       gift: isYearly ? form.gift : true,
       card: isYearly ? form.card : true,
@@ -236,7 +247,7 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
           <h2 className="mt-2 mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
             Verjaardagen
           </h2>
-          {rules.length === 0 ? (
+          {giftRules.length === 0 ? (
             <div className="bg-white rounded-2xl border border-gray-200 px-4 py-12 text-center">
               <Repeat className="h-8 w-8 text-gray-300 mx-auto mb-3" />
               <p className="text-sm text-gray-500 mb-4">Nog geen verjaardagen toegevoegd.</p>
@@ -247,7 +258,7 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              {rules.map((rule, i) => (
+              {giftRules.map((rule, i) => (
                 <RuleRow
                   key={rule.id}
                   rule={rule}
@@ -446,11 +457,12 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
                 <input
                   type="date"
                   value={birthDateInput}
+                  max={todayIso()}
                   onChange={(e) => {
                     setBirthDateInput(e.target.value)
-                    const [, m, d] = e.target.value.split('-').map(Number)
-                    if (!m || !d) return
-                    setForm(prev => ({ ...prev, month: m, day_of_month: d }))
+                    const [y, m, d] = e.target.value.split('-').map(Number)
+                    if (!y || !m || !d) return
+                    setForm(prev => ({ ...prev, birth_year: y, month: m, day_of_month: d }))
                   }}
                   className="block w-full min-w-0 px-3 py-2 text-sm bg-transparent outline-none"
                 />

@@ -71,6 +71,16 @@ function nextDayOfMonth(from: Date, dayOfMonth: number): Date {
   return new Date(d.getFullYear(), d.getMonth() + 1, dayOfMonth)
 }
 
+// Eerstvolgende keer dat dag+maand optreedt, geteld vanaf `now` (vandaag
+// zelf telt mee) — voor het chronologisch sorteren van verjaardagen, zonder
+// de 14-dagen-lead-time die bij het materialiseren van de taak geldt.
+export function nextYearlyOccurrence(day: number, month: number, now: Date = new Date()): Date {
+  const today = startOfDay(now)
+  const thisYear = new Date(today.getFullYear(), month - 1, day)
+  if (thisYear.getTime() >= today.getTime()) return thisYear
+  return new Date(today.getFullYear() + 1, month - 1, day)
+}
+
 export function formatDayMonth(day: number, month: number): string {
   const long = MONTH_OPTIONS.find(m => m.value === month)?.long ?? ''
   return long ? `${day} ${long}` : ''
@@ -248,7 +258,8 @@ export function describeRule(rule: TaskRule): string {
   }
   if (rule.rule_type === 'yearly') {
     if (!rule.day_of_month || !rule.month) return ''
-    return formatDayMonth(rule.day_of_month, rule.month)
+    const base = formatDayMonth(rule.day_of_month, rule.month)
+    return rule.birth_year ? `${base} ${rule.birth_year}` : base
   }
   if (rule.rule_type === 'workday') {
     if (!rule.first_due_at) return ''
