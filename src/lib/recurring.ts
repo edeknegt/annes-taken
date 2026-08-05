@@ -43,7 +43,7 @@ export function formatDayMonth(day: number, month: number): string {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Bepaal wanneer een regel eerstvolgend "due" is.
-//   fixed            -> vaste cadans vanaf het moment van materialiseren
+//   fixed            -> vast patroon vanaf het moment van materialiseren
 //                       (last_triggered_at), los van of de vorige taak is
 //                       afgevinkt. Vóór de eerste materialisatie geldt een
 //                       optionele first_due_at (anders: meteen due).

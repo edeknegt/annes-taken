@@ -2,7 +2,7 @@
 -- Anne's taken - Tasks Schema
 -- =============================================================================
 -- Taken met 5 vaste categorieen (huishouden, werk, inkopen, cadeaus,
--- overig) en herhaalregels (vaste cadans / na afvinken / jaarlijks).
+-- overig) en herhaalregels (vast patroon / na afvinken / jaarlijks).
 -- =============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -20,7 +20,7 @@ $$ LANGUAGE plpgsql;
 -- 1. TASK_RULES - Herhaalregels die automatisch een taak aanmaken zodra due
 -- ---------------------------------------------------------------------------
 -- rule_type bepaalt welke velden van toepassing zijn:
---   fixed            -> vaste cadans, los van afvinken: interval_n + recur_unit
+--   fixed            -> vast patroon, los van afvinken: interval_n + recur_unit
 --                       (dag/week/maand), volgende due-datum = laatste keer
 --                       gematerialiseerd + interval_n * recur_unit. Optioneel
 --                       een first_due_at voor de allereerste keer.

@@ -440,25 +440,31 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Herinnering
               </label>
-              <div className="flex gap-3">
-                <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 cursor-pointer flex-1">
-                  <input
-                    type="checkbox"
-                    checked={form.gift}
-                    onChange={(e) => setForm(prev => ({ ...prev, gift: e.target.checked }))}
-                    className="rounded border-gray-300 text-mint-600 focus:ring-mint-200"
-                  />
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, gift: !prev.gift }))}
+                  className={cn(
+                    'px-2 py-2 rounded-lg text-xs font-medium transition-colors touch-manipulation',
+                    form.gift
+                      ? 'bg-mint-500 text-mint-950'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  )}
+                >
                   Cadeau
-                </label>
-                <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 cursor-pointer flex-1">
-                  <input
-                    type="checkbox"
-                    checked={form.card}
-                    onChange={(e) => setForm(prev => ({ ...prev, card: e.target.checked }))}
-                    className="rounded border-gray-300 text-mint-600 focus:ring-mint-200"
-                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm(prev => ({ ...prev, card: !prev.card }))}
+                  className={cn(
+                    'px-2 py-2 rounded-lg text-xs font-medium transition-colors touch-manipulation',
+                    form.card
+                      ? 'bg-mint-500 text-mint-950'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  )}
+                >
                   Kaart
-                </label>
+                </button>
               </div>
             </div>
 
@@ -513,7 +519,7 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 )}
               >
-                Vaste cadans
+                Vast patroon
               </button>
               {form.category === 'werk' && (
                 <button
