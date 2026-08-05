@@ -28,6 +28,7 @@ export interface TaskRule {
   recur_unit: RecurUnit | null
   first_due_at: string | null
   day_of_month: number | null
+  weekday: number | null
   month: number | null
   shift_type: ShiftType | null
   gift: boolean

@@ -24,7 +24,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { isRuleDue, formatDayMonth } from '@/lib/recurring'
+import { isRuleDue, nextDueAt, formatDayMonth } from '@/lib/recurring'
 import { HARDCODED_GIFT_TASKS, isHardcodedDue } from '@/lib/gift-holidays'
 import { TASK_CATEGORIES, TASK_RULE_CATEGORIES, taskCategoryLabel } from '@/lib/tasks'
 import { TaskRulesPanel } from '@/components/task-rules-panel'
@@ -281,6 +281,19 @@ export function CategoryPageClient() {
         await supabase
           .from('task_rules')
           .update({ last_triggered_at: latestWorkdayDate.toISOString() })
+          .eq('id', rule.id)
+      } else if (
+        rule.rule_type === 'fixed' &&
+        ((rule.recur_unit === 'week' && rule.weekday != null) ||
+          (rule.recur_unit === 'month' && rule.day_of_month != null))
+      ) {
+        // Patroon op specifieke weekdag/dag-van-de-maand: de due-datum
+        // vastleggen (niet "nu") — anders schuift het patroon weg van de
+        // gekozen dag zodra de app niet exact op de due-datum wordt geopend.
+        const due = nextDueAt(rule, now, latestWorkdayDate)
+        await supabase
+          .from('task_rules')
+          .update({ last_triggered_at: (due ?? now).toISOString() })
           .eq('id', rule.id)
       } else {
         await supabase

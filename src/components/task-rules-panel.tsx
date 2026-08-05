@@ -6,7 +6,13 @@ import { createClient } from '@/lib/supabase/client'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { describeRule, describeRelativeDate, SHIFT_TYPE_LABEL } from '@/lib/recurring'
+import {
+  describeRule,
+  describeRelativeDate,
+  SHIFT_TYPE_LABEL,
+  WEEKDAY_OPTIONS,
+  FIXED_DAY_OF_MONTH_OPTIONS,
+} from '@/lib/recurring'
 import { HARDCODED_GIFT_TASKS } from '@/lib/gift-holidays'
 import { taskCategoryLabel } from '@/lib/tasks'
 import type { TaskCategory, TaskRule, RecurringRuleType, RecurUnit, ShiftType } from '@/lib/types'
@@ -20,6 +26,7 @@ interface RuleForm {
   recur_unit: RecurUnit
   first_due_at: string
   day_of_month: number
+  weekday: number
   month: number
   shift_type: ShiftType
   gift: boolean
@@ -38,6 +45,7 @@ function makeDefaultForm(category: TaskCategory): RuleForm {
     recur_unit: 'week',
     first_due_at: todayIso(),
     day_of_month: 1,
+    weekday: 0,
     month: 1,
     shift_type: 'dienst',
     gift: true,
@@ -56,6 +64,7 @@ function ruleToForm(r: TaskRule): RuleForm {
     recur_unit: r.recur_unit ?? 'week',
     first_due_at: r.first_due_at ?? todayIso(),
     day_of_month: r.day_of_month ?? 1,
+    weekday: r.weekday ?? 0,
     month: r.month ?? 1,
     shift_type: r.shift_type ?? 'dienst',
     gift: r.gift,
@@ -156,27 +165,35 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
   const save = async () => {
     const isYearly = form.rule_type === 'yearly'
     const isWorkday = form.rule_type === 'workday'
+    const isFixed = form.rule_type === 'fixed'
     const name = isWorkday ? SHIFT_TYPE_LABEL[form.shift_type] : form.name.trim()
     if (!name) return
     setSaving(true)
+
+    const intervalN =
+      isYearly || isWorkday || form.rule_type === 'after_workday'
+        ? 1
+        : Math.max(1, Number.isFinite(form.interval_n) ? form.interval_n : 1)
 
     const payload = {
       category: form.category,
       name,
       rule_type: form.rule_type,
-      interval_n:
-        isYearly || isWorkday || form.rule_type === 'after_workday'
-          ? 1
-          : Math.max(1, Number.isFinite(form.interval_n) ? form.interval_n : 1),
+      interval_n: intervalN,
       recur_unit:
         isYearly || isWorkday || form.rule_type === 'after_workday' ? null : form.recur_unit,
       first_due_at:
-        form.rule_type === 'after_completion' || form.rule_type === 'fixed'
+        form.rule_type === 'after_completion' || (isFixed && intervalN > 1)
           ? (form.first_due_at < todayIso() ? todayIso() : form.first_due_at)
           : isWorkday
             ? form.first_due_at
             : null,
-      day_of_month: isYearly ? Math.min(31, Math.max(1, form.day_of_month)) : null,
+      day_of_month: isYearly
+        ? Math.min(31, Math.max(1, form.day_of_month))
+        : isFixed && form.recur_unit === 'month'
+          ? Math.min(28, Math.max(1, form.day_of_month))
+          : null,
+      weekday: isFixed && form.recur_unit === 'week' ? Math.min(6, Math.max(0, form.weekday)) : null,
       month: isYearly ? Math.min(12, Math.max(1, form.month)) : null,
       shift_type: isWorkday ? form.shift_type : null,
       gift: isYearly ? form.gift : true,
@@ -387,12 +404,14 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Datum
               </label>
-              <input
-                type="date"
-                value={form.first_due_at}
-                onChange={(e) => setForm(prev => ({ ...prev, first_due_at: e.target.value }))}
-                className="w-full min-w-0 max-w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
-              />
+              <div className="rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-mint-200 focus-within:border-mint-500">
+                <input
+                  type="date"
+                  value={form.first_due_at}
+                  onChange={(e) => setForm(prev => ({ ...prev, first_due_at: e.target.value }))}
+                  className="block w-full min-w-0 px-3 py-2 text-sm bg-transparent outline-none"
+                />
+              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
@@ -423,17 +442,19 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Geboortedatum
               </label>
-              <input
-                type="date"
-                value={birthDateInput}
-                onChange={(e) => {
-                  setBirthDateInput(e.target.value)
-                  const [, m, d] = e.target.value.split('-').map(Number)
-                  if (!m || !d) return
-                  setForm(prev => ({ ...prev, month: m, day_of_month: d }))
-                }}
-                className="w-full min-w-0 max-w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
-              />
+              <div className="rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-mint-200 focus-within:border-mint-500">
+                <input
+                  type="date"
+                  value={birthDateInput}
+                  onChange={(e) => {
+                    setBirthDateInput(e.target.value)
+                    const [, m, d] = e.target.value.split('-').map(Number)
+                    if (!m || !d) return
+                    setForm(prev => ({ ...prev, month: m, day_of_month: d }))
+                  }}
+                  className="block w-full min-w-0 px-3 py-2 text-sm bg-transparent outline-none"
+                />
+              </div>
             </div>
 
             <div>
@@ -541,7 +562,7 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
           {/* N + eenheid — niet van toepassing bij "Na werkdag": de taak
               wordt gewoon toegevoegd op de werkdag zelf. */}
           {form.rule_type !== 'after_workday' && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-gray-700 whitespace-nowrap">Elke</span>
               <input
                 type="number"
@@ -576,24 +597,54 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
               {form.rule_type === 'after_completion' && (
                 <span className="text-sm text-gray-700 whitespace-nowrap">na afvinken</span>
               )}
+              {form.rule_type === 'fixed' && form.recur_unit === 'week' && (
+                <>
+                  <span className="text-sm text-gray-700 whitespace-nowrap">op</span>
+                  <select
+                    value={form.weekday}
+                    onChange={(e) => setForm(prev => ({ ...prev, weekday: parseInt(e.target.value) }))}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
+                  >
+                    {WEEKDAY_OPTIONS.map(w => (
+                      <option key={w.value} value={w.value}>{w.label}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+              {form.rule_type === 'fixed' && form.recur_unit === 'month' && (
+                <>
+                  <span className="text-sm text-gray-700 whitespace-nowrap">op de</span>
+                  <select
+                    value={form.day_of_month}
+                    onChange={(e) => setForm(prev => ({ ...prev, day_of_month: parseInt(e.target.value) }))}
+                    className="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
+                  >
+                    {FIXED_DAY_OF_MONTH_OPTIONS.map(d => (
+                      <option key={d} value={d}>{d}e</option>
+                    ))}
+                  </select>
+                </>
+              )}
             </div>
           )}
 
-          {(form.rule_type === 'after_completion' || form.rule_type === 'fixed') && (
+          {(form.rule_type === 'after_completion' || (form.rule_type === 'fixed' && form.interval_n > 1)) && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Eerste datum
               </label>
-              <input
-                type="date"
-                min={todayIso()}
-                value={form.first_due_at}
-                onChange={(e) => setForm(prev => ({
-                  ...prev,
-                  first_due_at: e.target.value < todayIso() ? todayIso() : e.target.value,
-                }))}
-                className="w-full min-w-0 max-w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
-              />
+              <div className="rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-mint-200 focus-within:border-mint-500">
+                <input
+                  type="date"
+                  min={todayIso()}
+                  value={form.first_due_at}
+                  onChange={(e) => setForm(prev => ({
+                    ...prev,
+                    first_due_at: e.target.value < todayIso() ? todayIso() : e.target.value,
+                  }))}
+                  className="block w-full min-w-0 px-3 py-2 text-sm bg-transparent outline-none"
+                />
+              </div>
             </div>
           )}
 

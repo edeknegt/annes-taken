@@ -20,10 +20,12 @@ $$ LANGUAGE plpgsql;
 -- 1. TASK_RULES - Herhaalregels die automatisch een taak aanmaken zodra due
 -- ---------------------------------------------------------------------------
 -- rule_type bepaalt welke velden van toepassing zijn:
---   fixed            -> vast patroon, los van afvinken: interval_n + recur_unit
---                       (dag/week/maand), volgende due-datum = laatste keer
---                       gematerialiseerd + interval_n * recur_unit. Optioneel
---                       een first_due_at voor de allereerste keer.
+--   fixed            -> vast patroon: interval_n + recur_unit (dag/week/
+--                       maand), optioneel op een specifieke weekdag (week,
+--                       via weekday 0-6) of dag-van-de-maand (maand, via
+--                       day_of_month 1-28). Bij interval_n > 1 bepaalt
+--                       first_due_at welke van de N-cyclus de eerste is;
+--                       bij interval_n = 1 is dat niet nodig.
 --   after_completion -> interval_n + recur_unit, maar de klok gaat pas lopen
 --                       zodra de vorige taak wordt afgevinkt. first_due_at is
 --                       de eerste due-datum, voordat er ooit is afgevinkt.
@@ -48,6 +50,7 @@ CREATE TABLE task_rules (
     recur_unit        text        CHECK (recur_unit IN ('day', 'week', 'month')),
     first_due_at      date,
     day_of_month      integer,
+    weekday           integer     CHECK (weekday BETWEEN 0 AND 6),
     month             integer,
     shift_type        text        CHECK (shift_type IN ('dienst', 'spreekuur')),
     gift              boolean     NOT NULL DEFAULT true,
@@ -57,11 +60,16 @@ CREATE TABLE task_rules (
     created_at        timestamptz DEFAULT now(),
 
     CHECK (
-        (rule_type = 'fixed'            AND recur_unit IS NOT NULL AND day_of_month IS NULL AND month IS NULL AND shift_type IS NULL)
-     OR (rule_type = 'after_completion' AND recur_unit IS NOT NULL AND day_of_month IS NULL AND month IS NULL AND shift_type IS NULL)
-     OR (rule_type = 'yearly'           AND day_of_month BETWEEN 1 AND 31 AND month BETWEEN 1 AND 12 AND recur_unit IS NULL AND first_due_at IS NULL AND shift_type IS NULL)
-     OR (rule_type = 'workday'          AND first_due_at IS NOT NULL AND shift_type IS NOT NULL AND recur_unit IS NULL AND day_of_month IS NULL AND month IS NULL)
-     OR (rule_type = 'after_workday'    AND recur_unit IS NULL AND first_due_at IS NULL AND day_of_month IS NULL AND month IS NULL AND shift_type IS NULL)
+        (rule_type = 'fixed'            AND recur_unit IS NOT NULL AND month IS NULL AND shift_type IS NULL
+                                         AND (day_of_month IS NULL OR (recur_unit = 'month' AND day_of_month BETWEEN 1 AND 28))
+                                         AND (weekday IS NULL OR recur_unit = 'week')
+                                         AND NOT (recur_unit = 'week' AND day_of_month IS NOT NULL)
+                                         AND NOT (recur_unit = 'month' AND weekday IS NOT NULL)
+                                         AND NOT (recur_unit = 'day' AND (day_of_month IS NOT NULL OR weekday IS NOT NULL)))
+     OR (rule_type = 'after_completion' AND recur_unit IS NOT NULL AND day_of_month IS NULL AND weekday IS NULL AND month IS NULL AND shift_type IS NULL)
+     OR (rule_type = 'yearly'           AND day_of_month BETWEEN 1 AND 31 AND month BETWEEN 1 AND 12 AND recur_unit IS NULL AND first_due_at IS NULL AND weekday IS NULL AND shift_type IS NULL)
+     OR (rule_type = 'workday'          AND first_due_at IS NOT NULL AND shift_type IS NOT NULL AND recur_unit IS NULL AND day_of_month IS NULL AND weekday IS NULL AND month IS NULL)
+     OR (rule_type = 'after_workday'    AND recur_unit IS NULL AND first_due_at IS NULL AND day_of_month IS NULL AND weekday IS NULL AND month IS NULL AND shift_type IS NULL)
     )
 );
 
