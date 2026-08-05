@@ -36,7 +36,7 @@ function addUnits(date: Date, unit: RecurUnit, n: number): Date {
   return d
 }
 
-function formatDayMonth(day: number, month: number): string {
+export function formatDayMonth(day: number, month: number): string {
   const long = MONTH_OPTIONS.find(m => m.value === month)?.long ?? ''
   return long ? `${day} ${long}` : ''
 }

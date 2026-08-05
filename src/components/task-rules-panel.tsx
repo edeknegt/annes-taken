@@ -80,10 +80,10 @@ interface TaskRulesPanelProps {
   // Alleen relevant voor Werk: welke van de twee tabbladen dit is. Bepaalt
   // welk blok getoond wordt en waar de FAB naartoe opent.
   section?: 'rules' | 'workdays'
-  // Na het opslaan/verwijderen/(de)activeren van een regel: laat de Taken-
-  // pagina direct opnieuw checken of er (bv. door een net toegevoegde
-  // verjaardag binnen de lead time) meteen een taak gematerialiseerd moet
-  // worden, in plaats van pas bij een volgende paginalading.
+  // Na het opslaan/verwijderen van een regel: laat de Taken-pagina direct
+  // opnieuw checken of er (bv. door een net toegevoegde verjaardag binnen de
+  // lead time) meteen een taak gematerialiseerd moet worden, in plaats van
+  // pas bij een volgende paginalading.
   onRulesChanged?: () => void
 }
 
@@ -108,7 +108,6 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
       .from('task_rules')
       .select('*')
       .eq('category', category)
-      .order('active', { ascending: false })
       .order('created_at', { ascending: false })
     setRules((data as TaskRule[]) || [])
     setLoading(false)
@@ -120,7 +119,12 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
 
   const isGifts = category === 'cadeaus'
   const isWerk = category === 'werk'
-  const workdayRules = rules.filter(r => r.rule_type === 'workday')
+  // Voorbije werkdagen blijven wél in de database (nodig als ankerpunt voor
+  // 'after_workday'), maar verdwijnen uit dit overzicht zodra de datum
+  // geweest is.
+  const workdayRules = rules.filter(
+    r => r.rule_type === 'workday' && !!r.first_due_at && r.first_due_at >= todayIso()
+  )
   const genericRules = rules.filter(r => r.rule_type !== 'workday')
 
   const openNew = () => {
@@ -177,7 +181,11 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
       shift_type: isWorkday ? form.shift_type : null,
       gift: isYearly ? form.gift : true,
       card: isYearly ? form.card : true,
-      active: form.active,
+      // Handmatig pauzeren bestaat niet meer — een regel is actief zolang
+      // hij bestaat. Voor 'workday' blijft `active` intern beheerd (zie
+      // [category]/page.tsx): eenmalig gedeactiveerd na materialiseren, als
+      // historie t.b.v. 'after_workday'.
+      active: isWorkday ? form.active : true,
     }
 
     if (form.id) {
@@ -189,13 +197,6 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
     setSaving(false)
     setEditorOpen(false)
     fetchRules()
-    onRulesChanged?.()
-  }
-
-  const toggleActive = async (rule: TaskRule) => {
-    const next = !rule.active
-    setRules(prev => prev.map(r => (r.id === rule.id ? { ...r, active: next } : r)))
-    await supabase.from('task_rules').update({ active: next }).eq('id', rule.id)
     onRulesChanged?.()
   }
 
@@ -234,7 +235,6 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
                   key={rule.id}
                   rule={rule}
                   first={i === 0}
-                  onToggle={toggleActive}
                   onEdit={openEdit}
                   onDelete={setDeleteConfirm}
                 />
@@ -286,7 +286,6 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
                     key={rule.id}
                     rule={rule}
                     first={i === 0}
-                    onToggle={toggleActive}
                     onEdit={openEdit}
                     onDelete={setDeleteConfirm}
                   />
@@ -313,7 +312,6 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
                   key={rule.id}
                   rule={rule}
                   first={i === 0}
-                  onToggle={toggleActive}
                   onEdit={openEdit}
                   onDelete={setDeleteConfirm}
                 />
@@ -340,7 +338,6 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
                 key={rule.id}
                 rule={rule}
                 first={i === 0}
-                onToggle={toggleActive}
                 onEdit={openEdit}
                 onDelete={setDeleteConfirm}
               />
@@ -650,36 +647,17 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
 interface RuleRowProps {
   rule: TaskRule
   first: boolean
-  onToggle: (rule: TaskRule) => void
   onEdit: (rule: TaskRule) => void
   onDelete: (rule: TaskRule) => void
 }
 
-function RuleRow({ rule, first, onToggle, onEdit, onDelete }: RuleRowProps) {
+function RuleRow({ rule, first, onEdit, onDelete }: RuleRowProps) {
   const isYearly = rule.rule_type === 'yearly'
   const isWorkday = rule.rule_type === 'workday'
-  const hideToggleAndHistory = isYearly || isWorkday
+  const hideHistory = isYearly || isWorkday
 
   return (
     <div className={cn('flex items-center gap-2 px-3', !first && 'border-t border-gray-100')}>
-      {!hideToggleAndHistory && (
-        <button
-          type="button"
-          onClick={() => onToggle(rule)}
-          className={cn(
-            'relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0',
-            rule.active ? 'bg-mint-500' : 'bg-gray-300'
-          )}
-          title={rule.active ? 'Pauzeren' : 'Activeren'}
-        >
-          <span
-            className={cn(
-              'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-              rule.active ? 'translate-x-4' : 'translate-x-0.5'
-            )}
-          />
-        </button>
-      )}
       <div className="flex-1 min-w-0 py-2.5">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[15px] text-gray-900 truncate">{rule.name}</span>
@@ -696,7 +674,7 @@ function RuleRow({ rule, first, onToggle, onEdit, onDelete }: RuleRowProps) {
         </div>
         <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
           <span>{describeRule(rule)}</span>
-          {!hideToggleAndHistory && (
+          {!hideHistory && (
             <>
               <span className="text-gray-300">·</span>
               <span>laatst toegevoegd: {describeRelativeDate(rule.last_triggered_at)}</span>

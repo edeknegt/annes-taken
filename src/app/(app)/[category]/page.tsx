@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { useParams, useRouter } from 'next/navigation'
-import { Plus, Check, X, Trash2, Repeat } from 'lucide-react'
+import { Plus, Check, X, Trash2 } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -24,7 +24,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { isRuleDue } from '@/lib/recurring'
+import { isRuleDue, formatDayMonth } from '@/lib/recurring'
 import { HARDCODED_GIFT_TASKS, isHardcodedDue } from '@/lib/gift-holidays'
 import { TASK_CATEGORIES, TASK_RULE_CATEGORIES, taskCategoryLabel } from '@/lib/tasks'
 import { TaskRulesPanel } from '@/components/task-rules-panel'
@@ -42,9 +42,10 @@ interface SortableTaskProps {
   task: Task
   onToggle: (task: Task) => void
   onDelete: (taskId: string) => void
+  onRename: (taskId: string, name: string) => void
 }
 
-function SortableTask({ task, onToggle, onDelete }: SortableTaskProps) {
+function SortableTask({ task, onToggle, onDelete, onRename }: SortableTaskProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id })
 
@@ -55,6 +56,29 @@ function SortableTask({ task, onToggle, onDelete }: SortableTaskProps) {
   }
 
   const checked = task.checked_at !== null
+
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
+  const nameInputRef = useRef<HTMLInputElement>(null)
+
+  const startEditName = () => {
+    flushSync(() => {
+      setNameDraft(task.name)
+      setEditingName(true)
+    })
+    nameInputRef.current?.focus()
+  }
+
+  const commitName = () => {
+    setEditingName(false)
+    const next = nameDraft.trim()
+    if (next && next !== task.name) onRename(task.id, next)
+  }
+
+  const cancelEditName = () => {
+    setEditingName(false)
+    setNameDraft('')
+  }
 
   return (
     <div
@@ -84,19 +108,37 @@ function SortableTask({ task, onToggle, onDelete }: SortableTaskProps) {
           </div>
         </button>
 
-        <span
-          className={cn(
-            'flex-1 min-w-0 truncate text-[15px] py-2.5',
-            checked ? 'text-gray-400 line-through' : 'text-gray-900'
-          )}
-        >
-          {task.name}
-        </span>
-
-        {task.task_rule_id && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-mint-700 bg-mint-100 rounded-full px-1.5 py-0.5 shrink-0">
-            <Repeat className="h-2.5 w-2.5" />
-          </span>
+        {editingName ? (
+          <input
+            ref={nameInputRef}
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation()
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                commitName()
+              } else if (e.key === 'Escape') {
+                e.preventDefault()
+                cancelEditName()
+              }
+            }}
+            onBlur={commitName}
+            className="flex-1 min-w-0 text-[15px] py-2.5 bg-transparent outline-none text-gray-900"
+          />
+        ) : (
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); startEditName() }}
+            className={cn(
+              'flex-1 min-w-0 text-left text-[15px] truncate py-2.5 cursor-text',
+              checked ? 'text-gray-400 line-through' : 'text-gray-900'
+            )}
+          >
+            {task.name}
+          </button>
         )}
 
         <button
@@ -185,14 +227,18 @@ export default function TakenCategoryPage() {
     const now = new Date()
 
     // Meest recente gelogde werkdag (Dienst/Spreekuur) tot en met vandaag —
-    // het ankerpunt voor 'after_workday'-regels.
-    const pastWorkdayDates = allRules
-      .filter(r => r.rule_type === 'workday' && r.first_due_at)
-      .map(r => new Date(r.first_due_at as string))
-      .filter(d => d.getTime() <= now.getTime())
-    const latestWorkdayDate = pastWorkdayDates.length > 0
-      ? new Date(Math.max(...pastWorkdayDates.map(d => d.getTime())))
+    // het ankerpunt voor 'after_workday'-regels. We houden de hele regel
+    // (niet alleen de datum) vast, want het shift_type (dienst/spreekuur)
+    // wordt straks in de taaknaam gezet.
+    const pastWorkdayRules = allRules.filter(
+      r => r.rule_type === 'workday' && r.first_due_at && new Date(r.first_due_at).getTime() <= now.getTime()
+    )
+    const latestWorkdayRule = pastWorkdayRules.length > 0
+      ? pastWorkdayRules.reduce((latest, r) =>
+          new Date(r.first_due_at as string).getTime() > new Date(latest.first_due_at as string).getTime() ? r : latest
+        )
       : null
+    const latestWorkdayDate = latestWorkdayRule ? new Date(latestWorkdayRule.first_due_at as string) : null
 
     const insertTask = async (name: string, taskRuleId: string | null) => {
       const maxSort = categoryTasks.length > 0
@@ -214,6 +260,12 @@ export default function TakenCategoryPage() {
       if (rule.rule_type === 'yearly') {
         if (rule.gift) await insertTask(`Cadeau ${rule.name}`, rule.id)
         if (rule.card) await insertTask(`Kaart ${rule.name}`, rule.id)
+      } else if (rule.rule_type === 'after_workday' && latestWorkdayDate && latestWorkdayRule) {
+        const dateLabel = formatDayMonth(latestWorkdayDate.getDate(), latestWorkdayDate.getMonth() + 1)
+        await insertTask(`${rule.name} ${latestWorkdayRule.shift_type} ${dateLabel}`, rule.id)
+      } else if (rule.rule_type === 'workday') {
+        // Puur logging/ankerpunt t.b.v. 'after_workday' — geen eigen,
+        // op zichzelf staande taak in de lijst.
       } else {
         await insertTask(rule.name, rule.id)
       }
@@ -308,6 +360,11 @@ export default function TakenCategoryPage() {
   const deleteTask = async (taskId: string) => {
     setTasks(prev => prev.filter(t => t.id !== taskId))
     await supabase.from('tasks').delete().eq('id', taskId)
+  }
+
+  const renameTask = async (taskId: string, name: string) => {
+    setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, name } : t)))
+    await supabase.from('tasks').update({ name }).eq('id', taskId)
   }
 
   const cleanupChecked = async () => {
@@ -463,6 +520,7 @@ export default function TakenCategoryPage() {
                         task={task}
                         onToggle={toggleChecked}
                         onDelete={deleteTask}
+                        onRename={renameTask}
                       />
                     ))}
                   </SortableContext>
