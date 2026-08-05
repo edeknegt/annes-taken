@@ -6,12 +6,24 @@ import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { Home, Briefcase, ShoppingBag, Gift, CircleEllipsis } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 import {
   type TabKey,
   getServerSnapshot,
   getTabHistorySnapshot,
   subscribeTabHistory,
 } from '@/lib/tab-history'
+import {
+  setAllTaskCounts,
+  subscribeTaskCounts,
+  getTaskCountsSnapshot,
+  getServerSnapshot as getTaskCountsServerSnapshot,
+} from '@/lib/task-counts'
+
+// iOS-app-badge-stijl: bij meer dan 9 openstaande taken tonen we "9+".
+function formatBadge(n: number): string {
+  return n > 9 ? '9+' : String(n)
+}
 
 type NavItem = {
   tab: TabKey
@@ -42,6 +54,31 @@ export function Sidebar() {
     getTabHistorySnapshot,
     getServerSnapshot,
   )
+  const taskCounts = useSyncExternalStore(
+    subscribeTaskCounts,
+    getTaskCountsSnapshot,
+    getTaskCountsServerSnapshot,
+  )
+
+  // Eenmalige globale telling bij het opstarten, zodat ook een nog niet
+  // bezochte tab meteen een correct aantal toont. Zodra je een categorie
+  // bezoekt, houdt die pagina zelf het actuele aantal live bij (zie
+  // src/lib/task-counts.ts).
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('tasks')
+      .select('category')
+      .is('checked_at', null)
+      .then(({ data }) => {
+        const counts: Partial<Record<TabKey, number>> = {}
+        for (const row of data ?? []) {
+          const cat = row.category as TabKey
+          counts[cat] = (counts[cat] ?? 0) + 1
+        }
+        setAllTaskCounts(counts)
+      })
+  }, [])
 
   const isActive = (item: NavItem) => {
     if (item.href === '/') return pathname === '/'
@@ -131,7 +168,17 @@ export function Sidebar() {
                   pressedTab === item.tab && 'opacity-60'
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <span className="relative">
+                  <Icon className="h-4 w-4" />
+                  {(taskCounts[item.tab] ?? 0) > 0 && (
+                    <span
+                      aria-hidden
+                      className="absolute -top-1 -right-1.5 min-w-[13px] h-[13px] px-[3px] rounded-full bg-red-500 text-white text-[7px] font-bold leading-[13px] text-center shadow-[0_0_0_1.5px_white]"
+                    >
+                      {formatBadge(taskCounts[item.tab] ?? 0)}
+                    </span>
+                  )}
+                </span>
                 <span
                   className={cn(
                     'text-[8.5px] leading-[1.1] text-center px-0.5',
@@ -176,6 +223,17 @@ export function Sidebar() {
               >
                 <Icon className={cn('h-5 w-5', active ? 'text-mint-950' : 'text-gray-400')} />
                 {item.label}
+                {(taskCounts[item.tab] ?? 0) > 0 && (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'ml-auto min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold leading-5 text-center',
+                      active ? 'bg-mint-950/20 text-mint-950' : 'bg-red-500 text-white'
+                    )}
+                  >
+                    {formatBadge(taskCounts[item.tab] ?? 0)}
+                  </span>
+                )}
               </Link>
             )
           })}

@@ -28,6 +28,7 @@ import { isRuleDue } from '@/lib/recurring'
 import { HARDCODED_GIFT_TASKS, isHardcodedDue } from '@/lib/gift-holidays'
 import { TASK_CATEGORIES, TASK_RULE_CATEGORIES, taskCategoryLabel } from '@/lib/tasks'
 import { TaskRulesPanel } from '@/components/task-rules-panel'
+import { setTaskCount } from '@/lib/task-counts'
 import type { Task, TaskCategory, TaskRule } from '@/lib/types'
 
 const VALID_CATEGORIES = TASK_CATEGORIES.map(c => c.value)
@@ -275,6 +276,13 @@ export default function TakenCategoryPage() {
   useEffect(() => {
     if (VALID_CATEGORIES.includes(category)) fetchData()
   }, [fetchData, category])
+
+  // Rapporteer het actuele aantal openstaande taken aan de nav-bar-badge —
+  // elke keer dat de lijst hier verandert (laden, afvinken, toevoegen).
+  useEffect(() => {
+    if (!VALID_CATEGORIES.includes(category)) return
+    setTaskCount(category, tasks.filter(t => t.checked_at === null).length)
+  }, [category, tasks])
 
   const checkedCount = tasks.filter(t => t.checked_at !== null).length
 
