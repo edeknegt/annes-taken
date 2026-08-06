@@ -33,7 +33,7 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { tab: 'vandaag', label: 'Vandaag', href: '/', icon: ListChecks },
+  { tab: 'vandaag', label: 'Taken', href: '/', icon: ListChecks },
   { tab: 'beheer', label: 'Beheer', href: '/beheer', icon: Settings },
 ]
 

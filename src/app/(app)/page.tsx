@@ -594,7 +594,7 @@ export default function VandaagPage() {
       {/* Fixed header */}
       <div className="fixed top-0 left-0 right-0 lg:left-64 z-20 bg-mint-100 px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-8 pb-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-          <h1 className="page-title truncate">Vandaag</h1>
+          <h1 className="page-title truncate">Taken</h1>
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
