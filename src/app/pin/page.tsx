@@ -30,7 +30,7 @@ export default function PinPage() {
           requestAnimationFrame(() => inputRef.current?.focus())
           return
         }
-        router.replace('/huishouden')
+        router.replace('/')
         router.refresh()
       })
     },

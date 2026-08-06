@@ -1,13 +1,11 @@
 'use client'
 
-import type { TaskCategory } from './types'
+export type TabKey = 'vandaag' | 'beheer'
 
-export type TabKey = TaskCategory
-
-// v2: routes werden platgetrokken van /taken/[categorie] en /categorieen naar
-// /[categorie] en /instellingen. Nieuwe key zodat oude, opgeslagen paden naar
-// niet meer bestaande routes niet per ongeluk worden herbruikt.
-const STORAGE_KEY = 'tab-history-v2'
+// v3: nav ging van 5 categorie-tabs naar Vandaag/Later + Beheer. Nieuwe key
+// zodat oude, opgeslagen paden naar niet meer bestaande categorie-routes
+// niet per ongeluk worden herbruikt.
+const STORAGE_KEY = 'tab-history-v3'
 
 type State = Partial<Record<TabKey, string>>
 

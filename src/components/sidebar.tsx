@@ -4,7 +4,7 @@ import { useRef, useState, useLayoutEffect, useEffect, useSyncExternalStore } fr
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { Home, Briefcase, ShoppingBag, Gift, CircleEllipsis } from 'lucide-react'
+import { ListChecks, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -14,10 +14,10 @@ import {
   subscribeTabHistory,
 } from '@/lib/tab-history'
 import {
-  setAllTaskCounts,
-  subscribeTaskCounts,
-  getTaskCountsSnapshot,
-  getServerSnapshot as getTaskCountsServerSnapshot,
+  setTodayCount,
+  subscribeTodayCount,
+  getTodayCountSnapshot,
+  getServerSnapshot as getTodayCountServerSnapshot,
 } from '@/lib/task-counts'
 
 // iOS-app-badge-stijl: bij meer dan 9 openstaande taken tonen we "9+".
@@ -29,15 +29,12 @@ type NavItem = {
   tab: TabKey
   label: string
   href: string
-  icon: typeof Home
+  icon: typeof ListChecks
 }
 
 const navItems: NavItem[] = [
-  { tab: 'huishouden', label: 'Huishouden', href: '/huishouden', icon: Home },
-  { tab: 'werk', label: 'Werk', href: '/werk', icon: Briefcase },
-  { tab: 'inkopen', label: 'Inkopen', href: '/inkopen', icon: ShoppingBag },
-  { tab: 'cadeaus', label: 'Cadeaus', href: '/cadeaus', icon: Gift },
-  { tab: 'overig', label: 'Overig', href: '/overig', icon: CircleEllipsis },
+  { tab: 'vandaag', label: 'Vandaag', href: '/', icon: ListChecks },
+  { tab: 'beheer', label: 'Beheer', href: '/beheer', icon: Settings },
 ]
 
 export function Sidebar() {
@@ -54,30 +51,23 @@ export function Sidebar() {
     getTabHistorySnapshot,
     getServerSnapshot,
   )
-  const taskCounts = useSyncExternalStore(
-    subscribeTaskCounts,
-    getTaskCountsSnapshot,
-    getTaskCountsServerSnapshot,
+  const todayCount = useSyncExternalStore(
+    subscribeTodayCount,
+    getTodayCountSnapshot,
+    getTodayCountServerSnapshot,
   )
 
-  // Eenmalige globale telling bij het opstarten, zodat ook een nog niet
-  // bezochte tab meteen een correct aantal toont. Zodra je een categorie
-  // bezoekt, houdt die pagina zelf het actuele aantal live bij (zie
-  // src/lib/task-counts.ts).
+  // Eenmalige globale telling bij het opstarten, zodat het badge ook klopt
+  // als je start op een andere pagina dan Vandaag. Zodra je Vandaag bezoekt,
+  // houdt die pagina zelf het actuele aantal live bij (zie task-counts.ts).
   useEffect(() => {
     const supabase = createClient()
     supabase
       .from('tasks')
-      .select('category')
+      .select('id', { count: 'exact', head: true })
+      .eq('today', true)
       .is('checked_at', null)
-      .then(({ data }) => {
-        const counts: Partial<Record<TabKey, number>> = {}
-        for (const row of data ?? []) {
-          const cat = row.category as TabKey
-          counts[cat] = (counts[cat] ?? 0) + 1
-        }
-        setAllTaskCounts(counts)
-      })
+      .then(({ count }) => setTodayCount(count ?? 0))
   }, [])
 
   const isActive = (item: NavItem) => {
@@ -87,7 +77,7 @@ export function Sidebar() {
 
   // Op de actieve tab altijd naar de root van die tab linken (zodat opnieuw
   // tikken terugspringt naar de lijst), op andere tabs naar de laatst-bezochte
-  // deep path zodat je terugkomt waar je was (incl. filters of recept-detail).
+  // deep path zodat je terugkomt waar je was.
   const hrefFor = (item: NavItem) => {
     if (isActive(item)) return item.href
     return tabHistory[item.tab] ?? item.href
@@ -170,12 +160,12 @@ export function Sidebar() {
               >
                 <span className="relative">
                   <Icon className="h-4 w-4" />
-                  {(taskCounts[item.tab] ?? 0) > 0 && (
+                  {item.tab === 'vandaag' && todayCount > 0 && (
                     <span
                       aria-hidden
                       className="absolute -top-1 -right-1.5 min-w-[13px] h-[13px] px-[3px] rounded-full bg-red-500 text-white text-[7px] font-bold leading-[13px] text-center shadow-[0_0_0_1.5px_white]"
                     >
-                      {formatBadge(taskCounts[item.tab] ?? 0)}
+                      {formatBadge(todayCount)}
                     </span>
                   )}
                 </span>
@@ -223,7 +213,7 @@ export function Sidebar() {
               >
                 <Icon className={cn('h-5 w-5', active ? 'text-mint-950' : 'text-gray-400')} />
                 {item.label}
-                {(taskCounts[item.tab] ?? 0) > 0 && (
+                {item.tab === 'vandaag' && todayCount > 0 && (
                   <span
                     aria-hidden
                     className={cn(
@@ -231,7 +221,7 @@ export function Sidebar() {
                       active ? 'bg-mint-950/20 text-mint-950' : 'bg-red-500 text-white'
                     )}
                   >
-                    {formatBadge(taskCounts[item.tab] ?? 0)}
+                    {formatBadge(todayCount)}
                   </span>
                 )}
               </Link>

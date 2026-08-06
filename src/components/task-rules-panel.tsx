@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Plus, Pencil, X, Repeat, Briefcase } from 'lucide-react'
+import { Plus, Pencil, X, Repeat, Briefcase, MessageSquare } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ interface RuleForm {
   id?: string
   category: TaskCategory
   name: string
+  description: string
   rule_type: RecurringRuleType
   interval_n: number
   recur_unit: RecurUnit
@@ -42,6 +43,7 @@ function makeDefaultForm(category: TaskCategory): RuleForm {
   return {
     category,
     name: '',
+    description: '',
     rule_type: 'fixed',
     interval_n: 1,
     recur_unit: 'week',
@@ -62,6 +64,7 @@ function ruleToForm(r: TaskRule): RuleForm {
     id: r.id,
     category: r.category,
     name: r.name,
+    description: r.description ?? '',
     rule_type: r.rule_type,
     interval_n: r.interval_n,
     recur_unit: r.recur_unit ?? 'week',
@@ -129,6 +132,12 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
 
   const isGifts = category === 'cadeaus'
   const isWerk = category === 'werk'
+  const isBerichten = category === 'berichten'
+  // Verstuurde/voorbije berichten verdwijnen uit dit overzicht zodra de
+  // datum geweest is (net als Werkdagen) — chronologisch gesorteerd.
+  const messageRules = rules
+    .filter(r => r.rule_type === 'once' && !!r.first_due_at && r.first_due_at >= todayIso())
+    .sort((a, b) => (a.first_due_at as string).localeCompare(b.first_due_at as string))
   // Voorbije werkdagen blijven wél in de database (nodig als ankerpunt voor
   // 'after_workday'), maar verdwijnen uit dit overzicht zodra de datum
   // geweest is.
@@ -149,7 +158,7 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
   const openNew = () => {
     setForm({
       ...makeDefaultForm(category),
-      rule_type: isGifts ? 'yearly' : 'fixed',
+      rule_type: isGifts ? 'yearly' : isBerichten ? 'once' : 'fixed',
     })
     setBirthDateInput('2000-01-01')
     setEditorOpen(true)
@@ -176,26 +185,28 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
     const isYearly = form.rule_type === 'yearly'
     const isWorkday = form.rule_type === 'workday'
     const isFixed = form.rule_type === 'fixed'
+    const isOnce = form.rule_type === 'once'
     const name = isWorkday ? SHIFT_TYPE_LABEL[form.shift_type] : form.name.trim()
     if (!name) return
     setSaving(true)
 
     const intervalN =
-      isYearly || isWorkday || form.rule_type === 'after_workday'
+      isYearly || isWorkday || isOnce || form.rule_type === 'after_workday'
         ? 1
         : Math.max(1, Number.isFinite(form.interval_n) ? form.interval_n : 1)
 
     const payload = {
       category: form.category,
       name,
+      description: isOnce ? (form.description.trim() || null) : null,
       rule_type: form.rule_type,
       interval_n: intervalN,
       recur_unit:
-        isYearly || isWorkday || form.rule_type === 'after_workday' ? null : form.recur_unit,
+        isYearly || isWorkday || isOnce || form.rule_type === 'after_workday' ? null : form.recur_unit,
       first_due_at:
         form.rule_type === 'after_completion' || (isFixed && intervalN > 1)
           ? (form.first_due_at < todayIso() ? todayIso() : form.first_due_at)
-          : isWorkday
+          : isWorkday || isOnce
             ? form.first_due_at
             : null,
       day_of_month: isYearly
@@ -210,10 +221,9 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
       gift: isYearly ? form.gift : true,
       card: isYearly ? form.card : true,
       // Handmatig pauzeren bestaat niet meer — een regel is actief zolang
-      // hij bestaat. Voor 'workday' blijft `active` intern beheerd (zie
-      // [category]/page.tsx): eenmalig gedeactiveerd na materialiseren, als
-      // historie t.b.v. 'after_workday'.
-      active: isWorkday ? form.active : true,
+      // hij bestaat. Voor 'workday' en 'once' blijft `active` intern beheerd
+      // (zie de Vandaag-pagina): eenmalig gedeactiveerd na materialiseren.
+      active: isWorkday || isOnce ? form.active : true,
     }
 
     if (form.id) {
@@ -242,7 +252,32 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
 
   return (
     <>
-      {isGifts ? (
+      {isBerichten ? (
+        messageRules.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-200 px-4 py-12 text-center mt-2">
+            <MessageSquare className="h-8 w-8 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500 mb-4">Nog geen berichten ingepland.</p>
+            <Button onClick={openNew}>
+              <Plus className="h-4 w-4 mr-1" />
+              Eerste bericht inplannen
+            </Button>
+          </div>
+        ) : (
+          <section className="mt-2">
+            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              {messageRules.map((rule, i) => (
+                <RuleRow
+                  key={rule.id}
+                  rule={rule}
+                  first={i === 0}
+                  onEdit={openEdit}
+                  onDelete={setDeleteConfirm}
+                />
+              ))}
+            </div>
+          </section>
+        )
+      ) : isGifts ? (
         <>
           <h2 className="mt-2 mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
             Verjaardagen
@@ -381,9 +416,11 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
         title={
           form.rule_type === 'workday'
             ? form.id ? 'Dienst/spreekuur bewerken' : 'Nieuwe dienst of spreekuur'
-            : form.category === 'cadeaus'
-              ? form.id ? 'Verjaardag bewerken' : 'Nieuwe verjaardag'
-              : form.id ? 'Taakregel bewerken' : 'Nieuwe taakregel'
+            : form.rule_type === 'once'
+              ? form.id ? 'Bericht bewerken' : 'Nieuw bericht'
+              : form.category === 'cadeaus'
+                ? form.id ? 'Verjaardag bewerken' : 'Nieuwe verjaardag'
+                : form.id ? 'Taakregel bewerken' : 'Nieuwe taakregel'
         }
       >
         {form.rule_type === 'workday' ? (
@@ -430,6 +467,56 @@ export function TaskRulesPanel({ category, section = 'rules', onRulesChanged }: 
                 Annuleren
               </Button>
               <Button onClick={save} loading={saving} disabled={!form.first_due_at}>
+                Opslaan
+              </Button>
+            </div>
+          </div>
+        ) : form.rule_type === 'once' ? (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Naam
+              </label>
+              <input
+                ref={nameRef}
+                value={form.name}
+                onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="bijv. tante Els"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500 placeholder:text-gray-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Beschrijving
+              </label>
+              <input
+                value={form.description}
+                onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Waar gaat het bericht over?"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500 placeholder:text-gray-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Datum
+              </label>
+              <div className="rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-mint-200 focus-within:border-mint-500">
+                <input
+                  type="date"
+                  value={form.first_due_at}
+                  onChange={(e) => setForm(prev => ({ ...prev, first_due_at: e.target.value }))}
+                  className="block w-full min-w-0 px-3 py-2 text-sm bg-transparent outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setEditorOpen(false)}>
+                Annuleren
+              </Button>
+              <Button onClick={save} loading={saving} disabled={!form.name.trim() || !form.first_due_at}>
                 Opslaan
               </Button>
             </div>
@@ -723,7 +810,8 @@ interface RuleRowProps {
 function RuleRow({ rule, first, onEdit, onDelete }: RuleRowProps) {
   const isYearly = rule.rule_type === 'yearly'
   const isWorkday = rule.rule_type === 'workday'
-  const hideHistory = isYearly || isWorkday
+  const isOnce = rule.rule_type === 'once'
+  const hideHistory = isYearly || isWorkday || isOnce
 
   return (
     <div className={cn('flex items-center gap-2 px-3', !first && 'border-t border-gray-100')}>
@@ -750,6 +838,9 @@ function RuleRow({ rule, first, onEdit, onDelete }: RuleRowProps) {
             </>
           )}
         </div>
+        {isOnce && rule.description && (
+          <div className="text-[11px] text-gray-400 mt-0.5 truncate">{rule.description}</div>
+        )}
       </div>
       <button
         type="button"

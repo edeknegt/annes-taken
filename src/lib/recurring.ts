@@ -115,6 +115,12 @@ export function formatDayMonthYear(day: number, month: number, year: number): st
 //                       (Dienst/Spreekuur), geen eigen datum of interval
 //                       nodig — die volgt uit de meest recente workday-regel,
 //                       meegegeven via `latestWorkdayDate`.
+//   once             -> eenmalig bericht op first_due_at (categorie
+//                       'berichten'), met een description. Het meerfasige
+//                       Later→Vandaag-traject (2 dagen van tevoren al
+//                       zichtbaar, op de datum zelf verplaatst) wordt NIET
+//                       hier maar rechtstreeks op de Vandaag-pagina bepaald
+//                       (nextDueAt hieronder geeft alleen de "echte" datum).
 // ─────────────────────────────────────────────────────────────────────────────
 export function nextDueAt(
   rule: TaskRule,
@@ -195,7 +201,7 @@ export function nextDueAt(
     return due
   }
 
-  if (rule.rule_type === 'workday') {
+  if (rule.rule_type === 'workday' || rule.rule_type === 'once') {
     if (!rule.first_due_at) return null
     return startOfDay(new Date(rule.first_due_at))
   }
@@ -261,7 +267,7 @@ export function describeRule(rule: TaskRule): string {
     const base = formatDayMonth(rule.day_of_month, rule.month)
     return rule.birth_year ? `${base} ${rule.birth_year}` : base
   }
-  if (rule.rule_type === 'workday') {
+  if (rule.rule_type === 'workday' || rule.rule_type === 'once') {
     if (!rule.first_due_at) return ''
     const d = new Date(rule.first_due_at)
     return formatDayMonthYear(d.getDate(), d.getMonth() + 1, d.getFullYear())

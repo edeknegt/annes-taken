@@ -1,46 +1,36 @@
 'use client'
 
-import type { TaskCategory } from './types'
-
 // Gedeelde, live bijgehouden telling van openstaande (niet-afgevinkte) taken
-// per categorie — gebruikt voor het rode aantal-badge op de nav-tabs (net als
-// een app-badge op het iPhone-homescreen). Elke [category]-pagina rapporteert
-// zijn eigen, actuele aantal zodra de taken daar geladen of gewijzigd zijn;
+// die vandaag gepland staan — gebruikt voor het rode aantal-badge op de
+// Vandaag-nav-tab (net als een app-badge op het iPhone-homescreen). De
+// Vandaag-pagina rapporteert dit live zodra de lijst daar laadt of wijzigt;
 // de Sidebar doet daarnaast één keer een globale telling bij het opstarten
-// zodat ook nog-niet-bezochte tabs meteen een correct aantal tonen.
-type Counts = Partial<Record<TaskCategory, number>>
-
+// zodat het badge ook klopt als je start op een andere pagina (bv. Beheer).
 const subscribers = new Set<() => void>()
-const EMPTY_SNAPSHOT: Counts = Object.freeze({})
 
-let snapshot: Counts = {}
+let snapshot = 0
 
 function emit() {
   for (const fn of subscribers) fn()
 }
 
-export function setTaskCount(category: TaskCategory, count: number) {
-  if (snapshot[category] === count) return
-  snapshot = { ...snapshot, [category]: count }
+export function setTodayCount(count: number) {
+  if (snapshot === count) return
+  snapshot = count
   emit()
 }
 
-export function setAllTaskCounts(counts: Counts) {
-  snapshot = { ...snapshot, ...counts }
-  emit()
-}
-
-export function subscribeTaskCounts(fn: () => void) {
+export function subscribeTodayCount(fn: () => void) {
   subscribers.add(fn)
   return () => {
     subscribers.delete(fn)
   }
 }
 
-export function getTaskCountsSnapshot(): Counts {
+export function getTodayCountSnapshot(): number {
   return snapshot
 }
 
-export function getServerSnapshot(): Counts {
-  return EMPTY_SNAPSHOT
+export function getServerSnapshot(): number {
+  return 0
 }
