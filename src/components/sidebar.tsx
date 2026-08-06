@@ -119,10 +119,13 @@ export function Sidebar() {
         className="nav-fade lg:hidden fixed left-0 right-0 bottom-0 z-30 pointer-events-none h-28 bg-gradient-to-t from-mint-100/80 via-mint-100/40 to-transparent"
       />
 
-      {/* Mobile bottom navigation bar (floating pill, WhatsApp-style) */}
+      {/* Mobile bottom navigation bar (floating pill, WhatsApp-style).
+          Positie is bewust vast — geen --keyboard-inset hier: de nav bar mag
+          nooit verschuiven, ook niet om boven een openend keyboard te
+          blijven staan (in tegenstelling tot de FAB, die dat wel doet). */}
       <nav
         className="mobile-nav lg:hidden fixed left-3 right-3 z-40 rounded-full bg-white/85 backdrop-blur-md border border-gray-200 shadow-lg shadow-mint-900/20"
-        style={{ bottom: 'calc(max(env(safe-area-inset-bottom, 0px), 0.5rem) + var(--keyboard-inset, 0px))' }}
+        style={{ bottom: 'max(env(safe-area-inset-bottom, 0px), 0.5rem)' }}
       >
         <div className="relative flex items-stretch justify-around h-14 px-1">
           {pill && (

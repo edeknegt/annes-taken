@@ -232,12 +232,24 @@ export default function VandaagPage() {
 
     let allTasks = (tasksRes.data as Task[]) || []
     const allRules = (rulesRes.data as TaskRule[]) || []
+    const now = new Date()
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+    // Afgevinkte taken 24 uur na afvinken automatisch opruimen — de
+    // handmatige "opschonen"-knop blijft daarnaast beschikbaar voor eerder.
+    const DAY_MS = 24 * 60 * 60 * 1000
+    const staleCheckedIds = allTasks
+      .filter(t => t.checked_at && now.getTime() - new Date(t.checked_at).getTime() > DAY_MS)
+      .map(t => t.id)
+    if (staleCheckedIds.length > 0) {
+      await supabase.from('tasks').delete().in('id', staleCheckedIds)
+      allTasks = allTasks.filter(t => !staleCheckedIds.includes(t.id))
+    }
+
     // 'once' (Berichten) heeft een eigen, meerfasig traject (lead-time in
     // Later, dan verplaatsen naar Vandaag op de dag zelf) en wordt hieronder
     // apart afgehandeld — niet via de generieke "één keer materialiseren"-lus.
     const activeRules = allRules.filter(r => r.active && r.rule_type !== 'once')
-    const now = new Date()
-    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 
     // Meest recente gelogde werkdag (Dienst/Spreekuur) tot en met vandaag —
     // het ankerpunt voor 'after_workday'-regels.
