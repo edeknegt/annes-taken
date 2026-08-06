@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { Plus, Check, X, Trash2 } from 'lucide-react'
+import { Plus, Check, X, Trash2, ArrowDownAZ } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -33,6 +33,11 @@ import type { Task, TaskCategory, TaskRule } from '@/lib/types'
 // als er geen filter actief is — categorie is nu puur een badge/filter, geen
 // verplichte keuze meer.
 const DEFAULT_CATEGORY: TaskCategory = 'overig'
+
+// Volgorde van de categorieën voor de "sorteer op categorie"-knop.
+const CATEGORY_ORDER: Record<TaskCategory, number> = Object.fromEntries(
+  TASK_CATEGORIES.map((c, i) => [c.value, i])
+) as Record<TaskCategory, number>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sortable task-rij — de hele rij is het sleepvlak (geen los handvat).
@@ -550,6 +555,29 @@ export default function VandaagPage() {
     )
   }
 
+  // Zet Vandaag en Later (elk apart) op volgorde van categorie, en binnen
+  // een categorie op naam (A-Z) — net als de "Loopvolgorde"-knop bij de
+  // boodschappenlijst van Anne's keuken.
+  const sortByCategory = async () => {
+    const sortSection = (list: Task[]) =>
+      [...list]
+        .sort((a, b) => {
+          const ao = CATEGORY_ORDER[a.category] ?? 999
+          const bo = CATEGORY_ORDER[b.category] ?? 999
+          if (ao !== bo) return ao - bo
+          return a.name.localeCompare(b.name, 'nl')
+        })
+        .map((t, i) => ({ ...t, manual_sort_order: i }))
+
+    const updated = [...sortSection(todayTasks), ...sortSection(laterTasks)]
+    const updatedById = new Map(updated.map(t => [t.id, t]))
+    setTasks(prev => prev.map(t => updatedById.get(t.id) ?? t))
+
+    await Promise.all(
+      updated.map(t => supabase.from('tasks').update({ manual_sort_order: t.manual_sort_order }).eq('id', t.id))
+    )
+  }
+
   if (loading) {
     return (
       <div className="fixed inset-0 flex flex-col items-center justify-center bg-mint-100">
@@ -567,16 +595,28 @@ export default function VandaagPage() {
       <div className="fixed top-0 left-0 right-0 lg:left-64 z-20 bg-mint-100 px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-8 pb-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
           <h1 className="page-title truncate">Vandaag</h1>
-          <button
-            type="button"
-            onClick={cleanupChecked}
-            disabled={checkedCount === 0}
-            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/70 hover:bg-white text-gray-500 hover:text-red-500 disabled:opacity-40 disabled:pointer-events-none border border-gray-200 shrink-0"
-            title="Afgevinkte taken opschonen"
-            aria-label="Afgevinkte taken opschonen"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={sortByCategory}
+              disabled={visibleTasks.length === 0}
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-white/70 hover:bg-white text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none border border-gray-200 shrink-0"
+              title="Sorteer op categorie en naam"
+              aria-label="Sorteer op categorie en naam"
+            >
+              <ArrowDownAZ className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={cleanupChecked}
+              disabled={checkedCount === 0}
+              className="flex items-center justify-center w-9 h-9 rounded-full bg-white/70 hover:bg-white text-gray-500 hover:text-red-500 disabled:opacity-40 disabled:pointer-events-none border border-gray-200 shrink-0"
+              title="Afgevinkte taken opschonen"
+              aria-label="Afgevinkte taken opschonen"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="max-w-2xl mx-auto mt-3 flex gap-1.5 overflow-x-auto pb-1 -mb-1">
