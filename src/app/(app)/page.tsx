@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { flushSync } from 'react-dom'
 import { Plus, Check, X, Trash2, ArrowDownAZ } from 'lucide-react'
+import { BottomSheet } from '@/components/ui/bottom-sheet'
+import { Button } from '@/components/ui/button'
 import {
   DndContext,
   closestCenter,
@@ -32,7 +34,7 @@ import type { Task, TaskCategory, TaskRule } from '@/lib/types'
 // Nieuwe taken die je hier zelf toevoegt krijgen een stille default-categorie
 // als er geen filter actief is — categorie is nu puur een badge/filter, geen
 // verplichte keuze meer.
-const DEFAULT_CATEGORY: TaskCategory = 'overig'
+const DEFAULT_CATEGORY: TaskCategory = 'huishouden'
 
 // Volgorde van de categorieën voor de "sorteer op categorie"-knop.
 const CATEGORY_ORDER: Record<TaskCategory, number> = Object.fromEntries(
@@ -211,11 +213,15 @@ export default function VandaagPage() {
     )
   }
 
-  const [addActive, setAddActive] = useState(false)
+  // Nieuwe taak: footer (bottom sheet) met Beschrijving, Categorie en Lijst
+  // (Vandaag/Later) — i.p.v. een inline invoerregel, omdat er nu meer dan
+  // alleen de naam is in te vullen.
+  const [addSheetOpen, setAddSheetOpen] = useState(false)
   const [newTaskName, setNewTaskName] = useState('')
+  const [newTaskCategory, setNewTaskCategory] = useState<TaskCategory>(DEFAULT_CATEGORY)
+  const [newTaskList, setNewTaskList] = useState<'today' | 'later'>('today')
   const [adding, setAdding] = useState(false)
-  const newTaskInputRef = useRef<HTMLInputElement>(null)
-  const addingRef = useRef(false)
+  const newTaskNameRef = useRef<HTMLInputElement>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -467,52 +473,35 @@ export default function VandaagPage() {
     await supabase.from('tasks').delete().in('id', toDelete)
   }
 
-  const activateAdd = () => {
-    // flushSync + synchrone focus() (i.p.v. requestAnimationFrame) houdt de
-    // focus-aanroep in dezelfde synchrone user-gesture-keten als de tik op de
-    // FAB — anders opent op mobiel (vooral iOS) het invoerveld wel, maar
-    // verschijnt het toetsenbord niet automatisch.
-    flushSync(() => {
-      setNewTaskName('')
-      setAddActive(true)
-    })
-    newTaskInputRef.current?.focus()
-  }
-
-  const deactivateAdd = () => {
-    setAddActive(false)
+  const openAddSheet = () => {
+    // Bij precies één actieve filterchip pakken we die als default-
+    // categorie, anders (geen of meerdere chips actief) de stille default.
     setNewTaskName('')
+    setNewTaskCategory(selectedCategories.length === 1 ? selectedCategories[0] : DEFAULT_CATEGORY)
+    setNewTaskList('today')
+    setAddSheetOpen(true)
+    setTimeout(() => newTaskNameRef.current?.focus(), 50)
   }
 
   const addTask = async () => {
     const name = newTaskName.trim()
     if (!name) return
-    addingRef.current = true
     setAdding(true)
 
-    // Nieuwe taken komen hier altijd meteen in Vandaag terecht. Bij precies
-    // één actieve filterchip pakken we die als categorie, anders (geen of
-    // meerdere chips actief) de stille default.
-    const category = selectedCategories.length === 1 ? selectedCategories[0] : DEFAULT_CATEGORY
-    const todaySorted = tasks.filter(t => t.today)
-    const maxSort = todaySorted.length > 0 ? Math.max(...todaySorted.map(t => t.manual_sort_order)) : -1
+    const today = newTaskList === 'today'
+    const bucket = tasks.filter(t => t.today === today)
+    const maxSort = bucket.length > 0 ? Math.max(...bucket.map(t => t.manual_sort_order)) : -1
 
     const { data: inserted } = await supabase
       .from('tasks')
-      .insert({ category, name, manual_sort_order: maxSort + 1, today: true })
+      .insert({ category: newTaskCategory, name, manual_sort_order: maxSort + 1, today })
       .select('*')
       .single()
 
     if (inserted) setTasks(prev => [...prev, inserted as Task])
 
-    setNewTaskName('')
     setAdding(false)
-    // Regel blijft open staan voor een volgende taak — zelfde gedrag als de
-    // quick-add bij boodschappen.
-    requestAnimationFrame(() => {
-      newTaskInputRef.current?.focus()
-      addingRef.current = false
-    })
+    setAddSheetOpen(false)
   }
 
   // Slepen tussen (en binnen) Vandaag/Later. Werkt op de huidige, eventueel
@@ -649,7 +638,7 @@ export default function VandaagPage() {
             </h2>
             <SectionDropZone id={SECTION_TODAY}>
               <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                {todayTasks.length === 0 && !addActive && (
+                {todayTasks.length === 0 && (
                   <p className="px-4 py-8 text-center text-sm text-gray-400">
                     Nog niets voor vandaag — sleep iets van Later, of voeg direct een taak toe.
                   </p>
@@ -666,47 +655,6 @@ export default function VandaagPage() {
                       />
                     ))}
                   </SortableContext>
-                )}
-                {addActive && (
-                  <div className={cn('flex items-center gap-2 pl-1 pr-1', todayTasks.length > 0 && 'border-t border-gray-100')}>
-                    <span className="flex items-center justify-center p-3 shrink-0" aria-hidden>
-                      <span className="w-5 h-5 rounded border-2 border-gray-300" />
-                    </span>
-                    <input
-                      ref={newTaskInputRef}
-                      value={newTaskName}
-                      onChange={(e) => setNewTaskName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newTaskName.trim() && !adding) {
-                          e.preventDefault()
-                          addTask()
-                        } else if (e.key === 'Escape') {
-                          deactivateAdd()
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!addingRef.current) deactivateAdd()
-                      }}
-                      placeholder="Nieuwe taak…"
-                      className="flex-1 py-2.5 bg-transparent text-[15px] placeholder:text-gray-400 outline-none min-w-0"
-                    />
-                    {adding ? (
-                      <span
-                        className="h-4 w-4 border-2 border-mint-500 border-r-transparent rounded-full animate-spin shrink-0 mr-2"
-                        aria-hidden
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={deactivateAdd}
-                        className="flex items-center justify-center p-3 shrink-0 text-gray-400 hover:text-gray-600"
-                        aria-label="Sluiten"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
                 )}
               </div>
             </SectionDropZone>
@@ -741,17 +689,80 @@ export default function VandaagPage() {
         </section>
       </DndContext>
 
-      {/* FAB — activeert de inline "Nieuwe taak…"-regel in Vandaag. Blijft
+      {/* FAB — opent de footer om een nieuwe taak toe te voegen. Blijft
           altijd zichtbaar, verschuift mee boven een open keyboard. */}
       <button
         type="button"
-        onClick={() => (addActive ? newTaskInputRef.current?.focus() : activateAdd())}
+        onClick={openAddSheet}
         className="fixed z-30 right-4 lg:right-8 bottom-[calc(5rem+env(safe-area-inset-bottom,0px)+var(--keyboard-inset,0px))] lg:bottom-8 flex items-center justify-center w-14 h-14 rounded-full bg-mint-500 text-mint-950 shadow-lg shadow-mint-900/30 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
         aria-label="Nieuwe taak"
         title="Nieuwe taak"
       >
         <Plus className="h-6 w-6" strokeWidth={2.5} />
       </button>
+
+      {/* Footer om een nieuwe taak toe te voegen: Beschrijving, Categorie
+          en Lijst (Vandaag/Later). */}
+      <BottomSheet open={addSheetOpen} onClose={() => setAddSheetOpen(false)} title="Nieuwe taak">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Beschrijving
+            </label>
+            <input
+              ref={newTaskNameRef}
+              value={newTaskName}
+              onChange={(e) => setNewTaskName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newTaskName.trim() && !adding) {
+                  e.preventDefault()
+                  addTask()
+                }
+              }}
+              placeholder="bijv. planten water geven"
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500 placeholder:text-gray-400"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Categorie
+            </label>
+            <select
+              value={newTaskCategory}
+              onChange={(e) => setNewTaskCategory(e.target.value as TaskCategory)}
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
+            >
+              {TASK_CATEGORIES.map(c => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Lijst
+            </label>
+            <select
+              value={newTaskList}
+              onChange={(e) => setNewTaskList(e.target.value as 'today' | 'later')}
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
+            >
+              <option value="today">Vandaag</option>
+              <option value="later">Later</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" onClick={() => setAddSheetOpen(false)}>
+              Annuleren
+            </Button>
+            <Button onClick={addTask} loading={adding} disabled={!newTaskName.trim()}>
+              Opslaan
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   )
 }

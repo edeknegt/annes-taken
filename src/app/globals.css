@@ -21,6 +21,14 @@
   --foreground: #1a1a1a;
 }
 
+html, body {
+  /* Voorkomt de horizontale swipe-terug/vooruit-gebaar (WKWebView/Safari):
+     zonder dit sleept die systeemgebaar de hele pagina — inclusief fixed
+     elementen zoals de nav bar — mee opzij tijdens het swipen. */
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
