@@ -27,7 +27,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { isRuleDue, nextDueAt, formatDayMonth, formatDayMonthYear } from '@/lib/recurring'
 import { HARDCODED_GIFT_TASKS, isHardcodedDue } from '@/lib/gift-holidays'
-import { TASK_CATEGORIES, CATEGORY_BADGE_CLASS, taskCategoryLabel } from '@/lib/tasks'
+import { TASK_CATEGORIES, FILTER_CATEGORIES, CATEGORY_BADGE_CLASS, taskCategoryLabel } from '@/lib/tasks'
 import { setTodayCount } from '@/lib/task-counts'
 import type { Task, TaskCategory, TaskRule } from '@/lib/types'
 
@@ -584,14 +584,14 @@ export default function VandaagPage() {
   // een categorie op naam (A-Z) — net als de "Loopvolgorde"-knop bij de
   // boodschappenlijst van Anne's keuken.
   const sortByCategory = async () => {
+    // Alleen op categorie sorteren — binnen een categorie blijft de
+    // bestaande onderlinge volgorde staan. `todayTasks`/`laterTasks` staan
+    // al in de huidige weergavevolgorde, en Array#sort is stable, dus een
+    // sort die alleen op categorie vergelijkt behoudt die volgorde binnen
+    // gelijke categorieën vanzelf.
     const sortSection = (list: Task[]) =>
       [...list]
-        .sort((a, b) => {
-          const ao = CATEGORY_ORDER[a.category] ?? 999
-          const bo = CATEGORY_ORDER[b.category] ?? 999
-          if (ao !== bo) return ao - bo
-          return a.name.localeCompare(b.name, 'nl')
-        })
+        .sort((a, b) => (CATEGORY_ORDER[a.category] ?? 999) - (CATEGORY_ORDER[b.category] ?? 999))
         .map((t, i) => ({ ...t, manual_sort_order: i }))
 
     const updated = [...sortSection(todayTasks), ...sortSection(laterTasks)]
@@ -626,8 +626,8 @@ export default function VandaagPage() {
               onClick={sortByCategory}
               disabled={visibleTasks.length === 0}
               className="flex items-center justify-center w-9 h-9 rounded-full bg-white/70 hover:bg-white text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none border border-gray-200 shrink-0"
-              title="Sorteer op categorie en naam"
-              aria-label="Sorteer op categorie en naam"
+              title="Sorteer op categorie"
+              aria-label="Sorteer op categorie"
             >
               <ArrowDownAZ className="h-4 w-4" />
             </button>
@@ -645,7 +645,7 @@ export default function VandaagPage() {
         </div>
 
         <div className="max-w-2xl mx-auto mt-3 flex gap-1.5 overflow-x-auto pb-1 -mb-1">
-          {TASK_CATEGORIES.map(c => (
+          {FILTER_CATEGORIES.map(c => (
             <button
               key={c.value}
               type="button"

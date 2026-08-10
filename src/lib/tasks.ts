@@ -4,7 +4,7 @@ export const TASK_CATEGORIES: { value: TaskCategory; label: string }[] = [
   { value: 'huishouden', label: 'Huishouden' },
   { value: 'werk', label: 'Werk' },
   { value: 'inkopen', label: 'Inkopen' },
-  { value: 'cadeaus', label: 'Cadeaus' },
+  { value: 'cadeaus', label: 'Cadeaus & Kaarten' },
   { value: 'berichten', label: 'Berichten' },
   { value: 'overig', label: 'Overig' },
 ]
@@ -16,13 +16,24 @@ export function taskCategoryLabel(category: TaskCategory): string {
 // Alle categorieën ondersteunen terugkerende taakregels.
 export const TASK_RULE_CATEGORIES = TASK_CATEGORIES
 
+// Beperktere set voor de filterchips boven Vandaag/Later — Cadeaus & Kaarten
+// en Overig blijven wel bestaan als categorie (badge, Beheer), maar zijn
+// geen apart filterknopje meer.
+export const FILTER_CATEGORIES = TASK_CATEGORIES.filter(
+  c => c.value === 'huishouden' || c.value === 'werk' || c.value === 'inkopen' || c.value === 'berichten'
+)
+
 // Kleurtje voor de categorie-badge op een taak (Vandaag/Later-scherm) en de
-// filterchips — puur decoratief, geen andere betekenis.
+// filterchips — puur decoratief, geen andere betekenis. Pastel (lichte
+// achtergrond), maar op maximaal uit elkaar liggende kleurfamilies (groen/
+// blauw/oranje/rood/geel/grijs), met stevig donkere tekstkleur (900 i.p.v.
+// 700) zodat het onderscheid vooral via helder/donker-contrast loopt — dat
+// blijft ook bij kleurenblindheid overeind, puur op tint lukt dat niet.
 export const CATEGORY_BADGE_CLASS: Record<TaskCategory, string> = {
-  huishouden: 'bg-mint-100 text-mint-700',
-  werk: 'bg-sky-100 text-sky-700',
-  inkopen: 'bg-amber-100 text-amber-700',
-  cadeaus: 'bg-pink-100 text-pink-700',
-  berichten: 'bg-violet-100 text-violet-700',
-  overig: 'bg-gray-100 text-gray-600',
+  huishouden: 'bg-green-200 text-green-900',
+  werk: 'bg-blue-200 text-blue-900',
+  inkopen: 'bg-orange-200 text-orange-900',
+  cadeaus: 'bg-red-200 text-red-900',
+  berichten: 'bg-yellow-200 text-yellow-900',
+  overig: 'bg-gray-200 text-gray-700',
 }
