@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { Plus, Check, X, Trash2, ArrowDownAZ } from 'lucide-react'
+import { Plus, Check, X, Trash2, ArrowDownAZ, ShoppingCart, WashingMachine, BrushCleaning } from 'lucide-react'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { Button } from '@/components/ui/button'
 import {
@@ -40,6 +40,26 @@ const DEFAULT_CATEGORY: TaskCategory = 'huishouden'
 const CATEGORY_ORDER: Record<TaskCategory, number> = Object.fromEntries(
   TASK_CATEGORIES.map((c, i) => [c.value, i])
 ) as Record<TaskCategory, number>
+
+// Snelknoppen boven Vandaag voor veelvoorkomende, niet-terugkerende taken —
+// één tik voegt alle taken uit de groep meteen toe aan Vandaag, alsof ze
+// handmatig zijn toegevoegd.
+interface QuickAddPreset {
+  icon: typeof ShoppingCart
+  title: string
+  category: TaskCategory
+  tasks: string[]
+}
+const QUICK_ADD_PRESETS: QuickAddPreset[] = [
+  { icon: ShoppingCart, title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
+  {
+    icon: WashingMachine,
+    title: 'Was in de wasmachine, was ophangen, was afhalen',
+    category: 'huishouden',
+    tasks: ['Was in de wasmachine', 'Was ophangen', 'Was afhalen'],
+  },
+  { icon: BrushCleaning, title: 'Stofzuigen en dweilen', category: 'huishouden', tasks: ['Stofzuigen', 'Dweilen'] },
+]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sortable task-rij — de hele rij is het sleepvlak (geen los handvat).
@@ -504,6 +524,22 @@ export default function VandaagPage() {
     setAddSheetOpen(false)
   }
 
+  // Snelknop: voegt in één keer alle taken uit een preset toe aan Vandaag,
+  // alsof ze los, handmatig zijn toegevoegd.
+  const quickAddPreset = async (preset: QuickAddPreset) => {
+    const bucket = tasks.filter(t => t.today)
+    let nextSort = bucket.length > 0 ? Math.max(...bucket.map(t => t.manual_sort_order)) + 1 : 0
+    const rows = preset.tasks.map(name => ({
+      category: preset.category,
+      name,
+      manual_sort_order: nextSort++,
+      today: true,
+    }))
+
+    const { data: inserted } = await supabase.from('tasks').insert(rows).select('*')
+    if (inserted) setTasks(prev => [...prev, ...(inserted as Task[])])
+  }
+
   // Slepen tussen (en binnen) Vandaag/Later. Werkt op de huidige, eventueel
   // gefilterde weergave — bij een actieve categoriefilter wordt de volgorde
   // dus alleen binnen die filter opnieuw genummerd.
@@ -630,8 +666,29 @@ export default function VandaagPage() {
       {/* Spacer onder fixed header */}
       <div className="h-32 sm:h-36 lg:h-40" aria-hidden />
 
+      {/* Snelknoppen: veelvoorkomende, niet-terugkerende taken in één tik
+          toevoegen aan Vandaag. */}
+      <div className="mt-2 flex gap-2">
+        {QUICK_ADD_PRESETS.map(preset => {
+          const Icon = preset.icon
+          return (
+            <button
+              key={preset.title}
+              type="button"
+              onClick={() => quickAddPreset(preset)}
+              title={preset.title}
+              aria-label={preset.title}
+              className="flex items-center justify-center gap-1 flex-1 py-1.5 rounded-xl bg-mint-500 text-mint-950 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.5} />
+              <Icon className="h-5 w-5" />
+            </button>
+          )
+        })}
+      </div>
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <section className="mt-2 pb-24 space-y-6">
+        <section className="mt-4 pb-24 space-y-6">
           <div>
             <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Vandaag
