@@ -54,9 +54,9 @@ const QUICK_ADD_PRESETS: QuickAddPreset[] = [
   { icon: ShoppingCart, title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
   {
     icon: WashingMachine,
-    title: 'Was in de wasmachine, was ophangen, was afhalen',
+    title: 'Was in de wasmachine, was ophangen, was afhalen, was opvouwen',
     category: 'huishouden',
-    tasks: ['Was in de wasmachine', 'Was ophangen', 'Was afhalen'],
+    tasks: ['Was in de wasmachine', 'Was ophangen', 'Was afhalen', 'Was opvouwen'],
   },
   { icon: BrushCleaning, title: 'Stofzuigen en dweilen', category: 'huishouden', tasks: ['Stofzuigen', 'Dweilen'] },
 ]
