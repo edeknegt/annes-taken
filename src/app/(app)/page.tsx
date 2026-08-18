@@ -29,7 +29,7 @@ import { isRuleDue, nextDueAt, formatDayMonth, formatDayMonthYear } from '@/lib/
 import { HARDCODED_GIFT_TASKS, isHardcodedDue } from '@/lib/gift-holidays'
 import { TASK_CATEGORIES, FILTER_CATEGORIES, CATEGORY_BADGE_CLASS, taskCategoryLabel } from '@/lib/tasks'
 import { setTodayCount } from '@/lib/task-counts'
-import type { Task, TaskCategory, TaskRule } from '@/lib/types'
+import type { Task, TaskCategory, TaskList, TaskRule } from '@/lib/types'
 
 // Nieuwe taken die je hier zelf toevoegt krijgen een stille default-categorie
 // als er geen filter actief is — categorie is nu puur een badge/filter, geen
@@ -212,6 +212,7 @@ function SectionDropZone({ id, children }: { id: string; children: React.ReactNo
 }
 
 const SECTION_TODAY = 'section-today'
+const SECTION_TOMORROW = 'section-tomorrow'
 const SECTION_LATER = 'section-later'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -239,7 +240,7 @@ export default function VandaagPage() {
   const [addSheetOpen, setAddSheetOpen] = useState(false)
   const [newTaskName, setNewTaskName] = useState('')
   const [newTaskCategory, setNewTaskCategory] = useState<TaskCategory>(DEFAULT_CATEGORY)
-  const [newTaskList, setNewTaskList] = useState<'today' | 'later'>('today')
+  const [newTaskList, setNewTaskList] = useState<TaskList>('today')
   const [adding, setAdding] = useState(false)
   const newTaskNameRef = useRef<HTMLInputElement>(null)
 
@@ -298,10 +299,10 @@ export default function VandaagPage() {
       category: TaskCategory,
       name: string,
       taskRuleId: string | null,
-      options?: { description?: string | null; today?: boolean }
+      options?: { description?: string | null; list?: TaskList }
     ) => {
-      const today = options?.today ?? false
-      const bucket = allTasks.filter(t => t.today === today)
+      const list = options?.list ?? 'later'
+      const bucket = allTasks.filter(t => t.list === list)
       const maxSort = bucket.length > 0 ? Math.max(...bucket.map(t => t.manual_sort_order)) : -1
       const { data: inserted } = await supabase
         .from('tasks')
@@ -311,7 +312,7 @@ export default function VandaagPage() {
           description: options?.description ?? null,
           manual_sort_order: maxSort + 1,
           task_rule_id: taskRuleId,
-          today,
+          list,
         })
         .select('*')
         .single()
@@ -387,21 +388,21 @@ export default function VandaagPage() {
         const taskName = rule.description
           ? `Bericht ${rule.name}: ${rule.description} (${dateLabel})`
           : `Bericht ${rule.name} (${dateLabel})`
-        await insertTask(rule.category, taskName, rule.id, { today: isDueToday })
+        await insertTask(rule.category, taskName, rule.id, { list: isDueToday ? 'today' : 'later' })
         if (isDueToday) {
           await supabase.from('task_rules').update({ active: false }).eq('id', rule.id)
         }
-      } else if (isDueToday && !existingTask.today) {
+      } else if (isDueToday && existingTask.list !== 'today') {
         // Al aangemaakt tijdens de lead-time — nu de dag zelf: verplaats
         // 'm naar Vandaag.
-        const todayBucket = allTasks.filter(t => t.today)
+        const todayBucket = allTasks.filter(t => t.list === 'today')
         const maxSort = todayBucket.length > 0 ? Math.max(...todayBucket.map(t => t.manual_sort_order)) : -1
         await supabase
           .from('tasks')
-          .update({ today: true, manual_sort_order: maxSort + 1 })
+          .update({ list: 'today', manual_sort_order: maxSort + 1 })
           .eq('id', existingTask.id)
         allTasks = allTasks.map(t =>
-          t.id === existingTask.id ? { ...t, today: true, manual_sort_order: maxSort + 1 } : t
+          t.id === existingTask.id ? { ...t, list: 'today', manual_sort_order: maxSort + 1 } : t
         )
         await supabase.from('task_rules').update({ active: false }).eq('id', rule.id)
       }
@@ -447,14 +448,17 @@ export default function VandaagPage() {
   // Rapporteer het actuele aantal openstaande Vandaag-taken aan de
   // nav-bar-badge, over alle categorieën heen (niet beperkt tot de filter).
   useEffect(() => {
-    setTodayCount(tasks.filter(t => t.today && t.checked_at === null).length)
+    setTodayCount(tasks.filter(t => t.list === 'today' && t.checked_at === null).length)
   }, [tasks])
 
   const visibleTasks = selectedCategories.length === 0
     ? tasks
     : tasks.filter(t => selectedCategories.includes(t.category))
-  const todayTasks = visibleTasks.filter(t => t.today).sort((a, b) => a.manual_sort_order - b.manual_sort_order)
-  const laterTasks = visibleTasks.filter(t => !t.today).sort((a, b) => a.manual_sort_order - b.manual_sort_order)
+  const byList = (list: TaskList) =>
+    visibleTasks.filter(t => t.list === list).sort((a, b) => a.manual_sort_order - b.manual_sort_order)
+  const todayTasks = byList('today')
+  const tomorrowTasks = byList('tomorrow')
+  const laterTasks = byList('later')
   const checkedCount = visibleTasks.filter(t => t.checked_at !== null).length
 
   // ---------------------------------------------------------------------------
@@ -508,13 +512,12 @@ export default function VandaagPage() {
     if (!name) return
     setAdding(true)
 
-    const today = newTaskList === 'today'
-    const bucket = tasks.filter(t => t.today === today)
+    const bucket = tasks.filter(t => t.list === newTaskList)
     const maxSort = bucket.length > 0 ? Math.max(...bucket.map(t => t.manual_sort_order)) : -1
 
     const { data: inserted } = await supabase
       .from('tasks')
-      .insert({ category: newTaskCategory, name, manual_sort_order: maxSort + 1, today })
+      .insert({ category: newTaskCategory, name, manual_sort_order: maxSort + 1, list: newTaskList })
       .select('*')
       .single()
 
@@ -527,22 +530,25 @@ export default function VandaagPage() {
   // Snelknop: voegt in één keer alle taken uit een preset toe aan Vandaag,
   // alsof ze los, handmatig zijn toegevoegd.
   const quickAddPreset = async (preset: QuickAddPreset) => {
-    const bucket = tasks.filter(t => t.today)
+    const bucket = tasks.filter(t => t.list === 'today')
     let nextSort = bucket.length > 0 ? Math.max(...bucket.map(t => t.manual_sort_order)) + 1 : 0
     const rows = preset.tasks.map(name => ({
       category: preset.category,
       name,
       manual_sort_order: nextSort++,
-      today: true,
+      list: 'today' as const,
     }))
 
     const { data: inserted } = await supabase.from('tasks').insert(rows).select('*')
     if (inserted) setTasks(prev => [...prev, ...(inserted as Task[])])
   }
 
-  // Slepen tussen (en binnen) Vandaag/Later. Werkt op de huidige, eventueel
-  // gefilterde weergave — bij een actieve categoriefilter wordt de volgorde
-  // dus alleen binnen die filter opnieuw genummerd.
+  // Slepen tussen (en binnen) Vandaag/Morgen/Later. Werkt op de huidige,
+  // eventueel gefilterde weergave — bij een actieve categoriefilter wordt
+  // de volgorde dus alleen binnen die filter opnieuw genummerd.
+  const tasksByList = (list: TaskList) =>
+    list === 'today' ? todayTasks : list === 'tomorrow' ? tomorrowTasks : laterTasks
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     if (!over) return
@@ -550,33 +556,35 @@ export default function VandaagPage() {
     const activeTask = tasks.find(t => t.id === active.id)
     if (!activeTask) return
 
-    const overIsSection = over.id === SECTION_TODAY || over.id === SECTION_LATER
+    const overIsSection = over.id === SECTION_TODAY || over.id === SECTION_TOMORROW || over.id === SECTION_LATER
     const overTask = overIsSection ? null : tasks.find(t => t.id === over.id)
-    const destToday = overIsSection ? over.id === SECTION_TODAY : (overTask ? overTask.today : activeTask.today)
-    const sameSection = destToday === activeTask.today
+    const destList: TaskList = overIsSection
+      ? (over.id === SECTION_TODAY ? 'today' : over.id === SECTION_TOMORROW ? 'tomorrow' : 'later')
+      : (overTask ? overTask.list : activeTask.list)
+    const sameSection = destList === activeTask.list
 
     if (active.id === over.id && sameSection) return
 
-    const sourceList = (activeTask.today ? todayTasks : laterTasks).filter(t => t.id !== active.id)
-    const destList = sameSection ? sourceList : (destToday ? todayTasks : laterTasks).filter(t => t.id !== active.id)
+    const sourceArr = tasksByList(activeTask.list).filter(t => t.id !== active.id)
+    const destArr = sameSection ? sourceArr : tasksByList(destList).filter(t => t.id !== active.id)
 
-    let insertIndex = destList.length
+    let insertIndex = destArr.length
     if (overTask) {
-      const idx = destList.findIndex(t => t.id === overTask.id)
+      const idx = destArr.findIndex(t => t.id === overTask.id)
       if (idx !== -1) insertIndex = idx
     }
 
-    const movedTask = { ...activeTask, today: destToday }
-    const newDest = [...destList.slice(0, insertIndex), movedTask, ...destList.slice(insertIndex)]
+    const movedTask = { ...activeTask, list: destList }
+    const newDest = [...destArr.slice(0, insertIndex), movedTask, ...destArr.slice(insertIndex)]
       .map((t, i) => ({ ...t, manual_sort_order: i }))
-    const newSource = sameSection ? [] : sourceList.map((t, i) => ({ ...t, manual_sort_order: i }))
+    const newSource = sameSection ? [] : sourceArr.map((t, i) => ({ ...t, manual_sort_order: i }))
 
     const updated = [...newDest, ...newSource]
     const updatedById = new Map(updated.map(t => [t.id, t]))
     setTasks(prev => prev.map(t => updatedById.get(t.id) ?? t))
 
     await Promise.all(
-      updated.map(t => supabase.from('tasks').update({ today: t.today, manual_sort_order: t.manual_sort_order }).eq('id', t.id))
+      updated.map(t => supabase.from('tasks').update({ list: t.list, manual_sort_order: t.manual_sort_order }).eq('id', t.id))
     )
   }
 
@@ -594,7 +602,7 @@ export default function VandaagPage() {
         .sort((a, b) => (CATEGORY_ORDER[a.category] ?? 999) - (CATEGORY_ORDER[b.category] ?? 999))
         .map((t, i) => ({ ...t, manual_sort_order: i }))
 
-    const updated = [...sortSection(todayTasks), ...sortSection(laterTasks)]
+    const updated = [...sortSection(todayTasks), ...sortSection(tomorrowTasks), ...sortSection(laterTasks)]
     const updatedById = new Map(updated.map(t => [t.id, t]))
     setTasks(prev => prev.map(t => updatedById.get(t.id) ?? t))
 
@@ -719,6 +727,33 @@ export default function VandaagPage() {
 
           <div>
             <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Morgen
+            </h2>
+            <SectionDropZone id={SECTION_TOMORROW}>
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                {tomorrowTasks.length === 0 ? (
+                  <p className="px-4 py-8 text-center text-sm text-gray-400">
+                    Niets voor morgen.
+                  </p>
+                ) : (
+                  <SortableContext items={tomorrowTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                    {tomorrowTasks.map(task => (
+                      <SortableTask
+                        key={task.id}
+                        task={task}
+                        onToggle={toggleChecked}
+                        onDelete={deleteTask}
+                        onRename={renameTask}
+                      />
+                    ))}
+                  </SortableContext>
+                )}
+              </div>
+            </SectionDropZone>
+          </div>
+
+          <div>
+            <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Later
             </h2>
             <SectionDropZone id={SECTION_LATER}>
@@ -802,10 +837,11 @@ export default function VandaagPage() {
             </label>
             <select
               value={newTaskList}
-              onChange={(e) => setNewTaskList(e.target.value as 'today' | 'later')}
+              onChange={(e) => setNewTaskList(e.target.value as TaskList)}
               className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
             >
               <option value="today">Vandaag</option>
+              <option value="tomorrow">Morgen</option>
               <option value="later">Later</option>
             </select>
           </div>

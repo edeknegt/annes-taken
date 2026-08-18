@@ -65,7 +65,7 @@ export function Sidebar() {
     supabase
       .from('tasks')
       .select('id', { count: 'exact', head: true })
-      .eq('today', true)
+      .eq('list', 'today')
       .is('checked_at', null)
       .then(({ count }) => setTodayCount(count ?? 0))
   }, [])

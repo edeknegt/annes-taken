@@ -4,6 +4,9 @@
 
 export type TaskCategory = 'huishouden' | 'werk' | 'inkopen' | 'cadeaus' | 'overig' | 'berichten'
 
+// Welke sectie op de Taken-pagina: Vandaag, Morgen of Later.
+export type TaskList = 'today' | 'tomorrow' | 'later'
+
 export interface Task {
   id: string
   category: TaskCategory
@@ -12,7 +15,7 @@ export interface Task {
   manual_sort_order: number
   checked_at: string | null
   task_rule_id: string | null
-  today: boolean
+  list: TaskList
   created_at: string
   updated_at: string
 }
