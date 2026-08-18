@@ -69,9 +69,10 @@ interface SortableTaskProps {
   onToggle: (task: Task) => void
   onDelete: (taskId: string) => void
   onRename: (taskId: string, name: string) => void
+  onChangeCategory: (task: Task) => void
 }
 
-function SortableTask({ task, onToggle, onDelete, onRename }: SortableTaskProps) {
+function SortableTask({ task, onToggle, onDelete, onRename, onChangeCategory }: SortableTaskProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id })
 
@@ -174,15 +175,20 @@ function SortableTask({ task, onToggle, onDelete, onRename }: SortableTaskProps)
           </button>
         )}
 
-        <span
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onChangeCategory(task) }}
           className={cn(
             'text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap',
             CATEGORY_BADGE_CLASS[task.category],
             checked && 'opacity-50'
           )}
+          aria-label="Categorie wijzigen"
+          title="Categorie wijzigen"
         >
           {taskCategoryLabel(task.category)}
-        </span>
+        </button>
 
         <button
           type="button"
@@ -243,6 +249,10 @@ export default function VandaagPage() {
   const [newTaskList, setNewTaskList] = useState<TaskList>('today')
   const [adding, setAdding] = useState(false)
   const newTaskNameRef = useRef<HTMLInputElement>(null)
+
+  // Categorie van een taak wijzigen: tik op het badge, kies een categorie
+  // in de footer die daarvoor opent.
+  const [categoryPickerTask, setCategoryPickerTask] = useState<Task | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -490,6 +500,14 @@ export default function VandaagPage() {
     await supabase.from('tasks').update({ name }).eq('id', taskId)
   }
 
+  const changeCategory = async (category: TaskCategory) => {
+    if (!categoryPickerTask) return
+    const taskId = categoryPickerTask.id
+    setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, category } : t)))
+    setCategoryPickerTask(null)
+    await supabase.from('tasks').update({ category }).eq('id', taskId)
+  }
+
   const cleanupChecked = async () => {
     const toDelete = visibleTasks.filter(t => t.checked_at !== null).map(t => t.id)
     if (toDelete.length === 0) return
@@ -717,6 +735,7 @@ export default function VandaagPage() {
                         onToggle={toggleChecked}
                         onDelete={deleteTask}
                         onRename={renameTask}
+                        onChangeCategory={setCategoryPickerTask}
                       />
                     ))}
                   </SortableContext>
@@ -744,6 +763,7 @@ export default function VandaagPage() {
                         onToggle={toggleChecked}
                         onDelete={deleteTask}
                         onRename={renameTask}
+                        onChangeCategory={setCategoryPickerTask}
                       />
                     ))}
                   </SortableContext>
@@ -771,6 +791,7 @@ export default function VandaagPage() {
                         onToggle={toggleChecked}
                         onDelete={deleteTask}
                         onRename={renameTask}
+                        onChangeCategory={setCategoryPickerTask}
                       />
                     ))}
                   </SortableContext>
@@ -854,6 +875,32 @@ export default function VandaagPage() {
               Opslaan
             </Button>
           </div>
+        </div>
+      </BottomSheet>
+
+      {/* Footer om de categorie van een bestaande taak te wijzigen — tik op
+          het categorie-badge op een taak om 'm hier te openen. */}
+      <BottomSheet
+        open={categoryPickerTask !== null}
+        onClose={() => setCategoryPickerTask(null)}
+        title="Categorie wijzigen"
+      >
+        <div className="grid grid-cols-2 gap-1.5">
+          {TASK_CATEGORIES.map(c => (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => changeCategory(c.value)}
+              className={cn(
+                'px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left',
+                categoryPickerTask?.category === c.value
+                  ? 'bg-mint-500 text-mint-950'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
         </div>
       </BottomSheet>
     </div>
