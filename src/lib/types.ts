@@ -4,8 +4,8 @@
 
 export type TaskCategory = 'huishouden' | 'werk' | 'inkopen' | 'cadeaus' | 'overig' | 'berichten'
 
-// Welke sectie op de Taken-pagina: Vandaag, Morgen of Later.
-export type TaskList = 'today' | 'tomorrow' | 'later'
+// Welke sectie op de Taken-pagina: Vandaag, Snel of Later.
+export type TaskList = 'today' | 'quick' | 'later'
 
 export interface Task {
   id: string

@@ -101,11 +101,11 @@ CREATE TABLE tasks (
     manual_sort_order integer     NOT NULL DEFAULT 0,
     checked_at        timestamptz,
     task_rule_id      uuid                 REFERENCES task_rules (id) ON DELETE SET NULL,
-    -- Vandaag/Morgen/Later: in welke sectie op de Taken-pagina de taak
+    -- Vandaag/Snel/Later: in welke sectie op de Taken-pagina de taak
     -- staat (default 'later' voor nieuw gematerialiseerde herhaalde taken).
     -- manual_sort_order is de sleepvolgorde binnen die sectie, niet meer per
     -- categorie — categorie is nu puur een badge/filter.
-    list              text        NOT NULL DEFAULT 'later' CHECK (list IN ('today', 'tomorrow', 'later')),
+    list              text        NOT NULL DEFAULT 'later' CHECK (list IN ('today', 'quick', 'later')),
     created_at        timestamptz DEFAULT now(),
     updated_at        timestamptz DEFAULT now()
 );

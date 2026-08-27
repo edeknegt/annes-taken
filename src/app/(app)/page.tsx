@@ -218,7 +218,7 @@ function SectionDropZone({ id, children }: { id: string; children: React.ReactNo
 }
 
 const SECTION_TODAY = 'section-today'
-const SECTION_TOMORROW = 'section-tomorrow'
+const SECTION_QUICK = 'section-quick'
 const SECTION_LATER = 'section-later'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -467,7 +467,7 @@ export default function VandaagPage() {
   const byList = (list: TaskList) =>
     visibleTasks.filter(t => t.list === list).sort((a, b) => a.manual_sort_order - b.manual_sort_order)
   const todayTasks = byList('today')
-  const tomorrowTasks = byList('tomorrow')
+  const quickTasks = byList('quick')
   const laterTasks = byList('later')
   const checkedCount = visibleTasks.filter(t => t.checked_at !== null).length
 
@@ -561,11 +561,11 @@ export default function VandaagPage() {
     if (inserted) setTasks(prev => [...prev, ...(inserted as Task[])])
   }
 
-  // Slepen tussen (en binnen) Vandaag/Morgen/Later. Werkt op de huidige,
+  // Slepen tussen (en binnen) Vandaag/Snel/Later. Werkt op de huidige,
   // eventueel gefilterde weergave — bij een actieve categoriefilter wordt
   // de volgorde dus alleen binnen die filter opnieuw genummerd.
   const tasksByList = (list: TaskList) =>
-    list === 'today' ? todayTasks : list === 'tomorrow' ? tomorrowTasks : laterTasks
+    list === 'today' ? todayTasks : list === 'quick' ? quickTasks : laterTasks
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
@@ -574,10 +574,10 @@ export default function VandaagPage() {
     const activeTask = tasks.find(t => t.id === active.id)
     if (!activeTask) return
 
-    const overIsSection = over.id === SECTION_TODAY || over.id === SECTION_TOMORROW || over.id === SECTION_LATER
+    const overIsSection = over.id === SECTION_TODAY || over.id === SECTION_QUICK || over.id === SECTION_LATER
     const overTask = overIsSection ? null : tasks.find(t => t.id === over.id)
     const destList: TaskList = overIsSection
-      ? (over.id === SECTION_TODAY ? 'today' : over.id === SECTION_TOMORROW ? 'tomorrow' : 'later')
+      ? (over.id === SECTION_TODAY ? 'today' : over.id === SECTION_QUICK ? 'quick' : 'later')
       : (overTask ? overTask.list : activeTask.list)
     const sameSection = destList === activeTask.list
 
@@ -620,7 +620,7 @@ export default function VandaagPage() {
         .sort((a, b) => (CATEGORY_ORDER[a.category] ?? 999) - (CATEGORY_ORDER[b.category] ?? 999))
         .map((t, i) => ({ ...t, manual_sort_order: i }))
 
-    const updated = [...sortSection(todayTasks), ...sortSection(tomorrowTasks), ...sortSection(laterTasks)]
+    const updated = [...sortSection(todayTasks), ...sortSection(quickTasks), ...sortSection(laterTasks)]
     const updatedById = new Map(updated.map(t => [t.id, t]))
     setTasks(prev => prev.map(t => updatedById.get(t.id) ?? t))
 
@@ -746,17 +746,17 @@ export default function VandaagPage() {
 
           <div>
             <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Morgen
+              Snel
             </h2>
-            <SectionDropZone id={SECTION_TOMORROW}>
+            <SectionDropZone id={SECTION_QUICK}>
               <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                {tomorrowTasks.length === 0 ? (
+                {quickTasks.length === 0 ? (
                   <p className="px-4 py-8 text-center text-sm text-gray-400">
-                    Niets voor morgen.
+                    Niets in Snel.
                   </p>
                 ) : (
-                  <SortableContext items={tomorrowTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                    {tomorrowTasks.map(task => (
+                  <SortableContext items={quickTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                    {quickTasks.map(task => (
                       <SortableTask
                         key={task.id}
                         task={task}
@@ -862,7 +862,7 @@ export default function VandaagPage() {
               className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
             >
               <option value="today">Vandaag</option>
-              <option value="tomorrow">Morgen</option>
+              <option value="quick">Snel</option>
               <option value="later">Later</option>
             </select>
           </div>
