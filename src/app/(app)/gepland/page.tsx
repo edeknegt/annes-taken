@@ -12,9 +12,9 @@ import type { TaskCategory, TaskRule } from '@/lib/types'
 
 // Een geplande taak is een task_rule met rule_type 'once': op de ingestelde
 // datum maakt de Taken-pagina er automatisch een taak van in Vandaag, en de
-// dag ervoor staat hij alvast in Snel. Dat is exact hetzelfde mechanisme als
-// achter Berichten, vandaar dat berichten hier ook gewoon tussen staan — alles
-// wat vooruit gepland is, staat op één plek.
+// dag ervoor staat hij alvast in Snel. Dit is de enige plek waar zulke
+// eenmalige taken worden gemaakt — Beheer gaat alleen over regels die zich
+// blijven herhalen.
 
 const DEFAULT_CATEGORY: TaskCategory = 'huishouden'
 
@@ -38,15 +38,12 @@ function formatLongDate(iso: string): string {
 interface PlannedForm {
   id: string | null
   name: string
-  // Berichten (ingepland via Beheer) kunnen een toelichting hebben. Die is
-  // hier niet in te vullen, maar mag bij het bewerken ook niet sneuvelen.
-  description: string | null
   date: string
   category: TaskCategory
 }
 
 function emptyForm(): PlannedForm {
-  return { id: null, name: '', description: null, date: todayIso(), category: DEFAULT_CATEGORY }
+  return { id: null, name: '', date: todayIso(), category: DEFAULT_CATEGORY }
 }
 
 export default function GeplandPage() {
@@ -84,7 +81,6 @@ export default function GeplandPage() {
     setForm({
       id: rule.id,
       name: rule.name,
-      description: rule.description,
       date: (rule.first_due_at ?? todayIso()).slice(0, 10),
       category: rule.category,
     })
@@ -99,7 +95,7 @@ export default function GeplandPage() {
     const payload = {
       category: form.category,
       name,
-      description: form.description,
+      description: null,
       rule_type: 'once' as const,
       interval_n: 1,
       recur_unit: null,
@@ -177,9 +173,6 @@ export default function GeplandPage() {
                     className="flex-1 min-w-0 py-2.5 text-left"
                   >
                     <span className="block truncate text-[15px] text-gray-900">{rule.name}</span>
-                    {rule.description && (
-                      <span className="block truncate text-[11px] text-gray-400">{rule.description}</span>
-                    )}
                     <span
                       className={cn(
                         'block text-[11px] mt-0.5',

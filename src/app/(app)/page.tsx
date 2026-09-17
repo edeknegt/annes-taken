@@ -25,7 +25,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { isRuleDue, nextDueAt, formatDayMonth, formatDayMonthYear } from '@/lib/recurring'
+import { isRuleDue, nextDueAt, formatDayMonth } from '@/lib/recurring'
 import { HARDCODED_GIFT_TASKS, isHardcodedDue } from '@/lib/gift-holidays'
 import { TASK_CATEGORIES, FILTER_CATEGORIES, CATEGORY_BADGE_CLASS, CATEGORY_ICON, taskCategoryLabel } from '@/lib/tasks'
 import { setTodayCount } from '@/lib/task-counts'
@@ -406,37 +406,22 @@ export default function VandaagPage() {
       }
     }
 
-    // 'once' — eenmalig op een vaste datum. Twee smaken:
-    //  • Berichten: 2 dagen van tevoren al zichtbaar in Later (je wilt een
-    //    kaartje op tijd kunnen kopen), op de datum zelf naar Vandaag. De
-    //    taaknaam bevat naam, beschrijving en datum in één leesbare zin.
-    //  • Alle andere categorieën (de Gepland-tab): de dag ervoor alvast in
-    //    Snel, op de dag zelf in Vandaag, met de naam die je hebt ingevoerd —
-    //    de datum hoeft er dan niet meer bij.
-    const BERICHT_LEAD_DAYS = 2
+    // 'once' — de geplande taken (Gepland-tab): eenmalig op een vaste datum.
+    // De dag ervoor staan ze alvast in Snel, op de dag zelf in Vandaag, met
+    // precies de naam die je hebt ingevoerd.
     const GEPLAND_LEAD_DAYS = 1
     const onceRules = allRules.filter(r => r.active && r.rule_type === 'once' && r.first_due_at)
     for (const rule of onceRules) {
-      const isBericht = rule.category === 'berichten'
-      const leadList: TaskList = isBericht ? 'later' : 'quick'
       const dueDate = startOfDay(new Date(rule.first_due_at as string))
       const leadDate = new Date(dueDate)
-      leadDate.setDate(leadDate.getDate() - (isBericht ? BERICHT_LEAD_DAYS : GEPLAND_LEAD_DAYS))
+      leadDate.setDate(leadDate.getDate() - GEPLAND_LEAD_DAYS)
       if (startOfDay(now).getTime() < leadDate.getTime()) continue
 
       const isDueToday = startOfDay(now).getTime() >= dueDate.getTime()
       const existingTask = allTasks.find(t => t.task_rule_id === rule.id && t.checked_at === null)
 
       if (!existingTask) {
-        const dateLabel = formatDayMonthYear(dueDate.getDate(), dueDate.getMonth() + 1, dueDate.getFullYear())
-        const taskName = isBericht
-          ? rule.description
-            ? `Bericht ${rule.name}: ${rule.description} (${dateLabel})`
-            : `Bericht ${rule.name} (${dateLabel})`
-          : rule.description
-            ? `${rule.name}: ${rule.description}`
-            : rule.name
-        await insertTask(rule.category, taskName, rule.id, { list: isDueToday ? 'today' : leadList })
+        await insertTask(rule.category, rule.name, rule.id, { list: isDueToday ? 'today' : 'quick' })
         if (isDueToday) {
           await supabase.from('task_rules').update({ active: false }).eq('id', rule.id)
         }
