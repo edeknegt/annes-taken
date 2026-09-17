@@ -11,10 +11,10 @@ import { TASK_CATEGORIES, CATEGORY_BADGE_CLASS, CATEGORY_ICON, taskCategoryLabel
 import type { TaskCategory, TaskRule } from '@/lib/types'
 
 // Een geplande taak is een task_rule met rule_type 'once': op de ingestelde
-// datum maakt de Taken-pagina er automatisch een taak van in Vandaag — de dag
-// ervoor staat hij alvast in Snel. Dat is
-// exact hetzelfde mechanisme als achter Berichten, vandaar dat berichten hier
-// ook gewoon tussen staan — alles wat vooruit gepland is, staat op één plek.
+// datum maakt de Taken-pagina er automatisch een taak van in Vandaag, en de
+// dag ervoor staat hij alvast in Snel. Dat is exact hetzelfde mechanisme als
+// achter Berichten, vandaar dat berichten hier ook gewoon tussen staan — alles
+// wat vooruit gepland is, staat op één plek.
 
 const DEFAULT_CATEGORY: TaskCategory = 'huishouden'
 
