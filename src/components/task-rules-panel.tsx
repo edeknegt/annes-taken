@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { Plus, Pencil, X, Repeat, Briefcase } from 'lucide-react'
+import { Plus, X, Repeat, Briefcase } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { Button } from '@/components/ui/button'
@@ -733,7 +733,8 @@ function RuleRow({ rule, first, onEdit, onDelete }: RuleRowProps) {
 
   return (
     <div className={cn('flex items-center gap-2 px-3', !first && 'border-t border-gray-100')}>
-      <div className="flex-1 min-w-0 py-2.5">
+      {/* De hele regel is de bewerkknop — geen apart potloodje. */}
+      <button type="button" onClick={() => onEdit(rule)} className="flex-1 min-w-0 py-2.5 text-left">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[15px] text-gray-900 truncate">{rule.name}</span>
           {isYearly && rule.gift && (
@@ -756,14 +757,6 @@ function RuleRow({ rule, first, onEdit, onDelete }: RuleRowProps) {
             </>
           )}
         </div>
-      </div>
-      <button
-        type="button"
-        onClick={() => onEdit(rule)}
-        className="flex items-center justify-center p-3 text-gray-400 hover:text-gray-700"
-        title="Bewerken"
-      >
-        <Pencil className="h-4 w-4" />
       </button>
       <button
         type="button"
