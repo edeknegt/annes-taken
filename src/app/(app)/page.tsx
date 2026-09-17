@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { Plus, Check, X, Trash2, ArrowDownAZ, ShoppingCart, WashingMachine, BrushCleaning, Droplets, ListPlus } from 'lucide-react'
+import { Plus, Check, X, Trash2, ArrowDownAZ, ListPlus } from 'lucide-react'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,20 +44,20 @@ const CATEGORY_ORDER: Record<TaskCategory, number> = Object.fromEntries(
 // Standaardtaken: veelvoorkomende, niet-terugkerende taken die je met één tik
 // aan Vandaag toevoegt. Ze staan samen in één footer (bottom sheet), verdeeld
 // in losse taken en sets — een set voegt in één keer meerdere taken toe.
+// Bewust zónder eigen iconen: een icoon staat in deze app voor een categorie,
+// en een tweede betekenis erbij maakt het alleen maar verwarrend.
 interface StandardTaskPreset {
-  icon: typeof ShoppingCart
   title: string
   category: TaskCategory
   tasks: string[]
 }
 const STANDARD_SINGLES: StandardTaskPreset[] = [
-  { icon: ShoppingCart, title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
-  { icon: BrushCleaning, title: 'Stofzuigen', category: 'huishouden', tasks: ['Stofzuigen'] },
-  { icon: Droplets, title: 'Dweilen', category: 'huishouden', tasks: ['Dweilen'] },
+  { title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
+  { title: 'Stofzuigen', category: 'huishouden', tasks: ['Stofzuigen'] },
+  { title: 'Dweilen', category: 'huishouden', tasks: ['Dweilen'] },
 ]
 const STANDARD_SETS: StandardTaskPreset[] = [
   {
-    icon: WashingMachine,
     title: 'Gekleurde was',
     category: 'huishouden',
     tasks: [
@@ -68,13 +68,11 @@ const STANDARD_SETS: StandardTaskPreset[] = [
     ],
   },
   {
-    icon: WashingMachine,
     title: 'Witte was',
     category: 'huishouden',
     tasks: ['Witte was in de wasmachine', 'Witte was ophangen', 'Witte was afhalen', 'Witte was opvouwen'],
   },
   {
-    icon: BrushCleaning,
     title: 'Huis schoonmaken',
     category: 'huishouden',
     tasks: ['Stofzuigen', 'Dweilen'],
@@ -907,27 +905,16 @@ export default function VandaagPage() {
               Losse taken
             </h3>
             <div className="grid grid-cols-2 gap-1.5">
-              {STANDARD_SINGLES.map(preset => {
-                const Icon = preset.icon
-                return (
-                  <button
-                    key={preset.title}
-                    type="button"
-                    onClick={() => addStandardPreset(preset)}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium text-left hover:bg-gray-200 transition-colors"
-                  >
-                    <span
-                      className={cn(
-                        'flex items-center justify-center h-6 w-6 rounded-full shrink-0',
-                        CATEGORY_BADGE_CLASS[preset.category]
-                      )}
-                    >
-                      <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
-                    </span>
-                    <span className="truncate">{preset.title}</span>
-                  </button>
-                )
-              })}
+              {STANDARD_SINGLES.map(preset => (
+                <button
+                  key={preset.title}
+                  type="button"
+                  onClick={() => addStandardPreset(preset)}
+                  className="px-3 py-2.5 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium text-left truncate hover:bg-gray-200 transition-colors"
+                >
+                  {preset.title}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -936,38 +923,27 @@ export default function VandaagPage() {
               Sets
             </h3>
             <div className="space-y-1.5">
-              {STANDARD_SETS.map(preset => {
-                const Icon = preset.icon
-                return (
-                  <button
-                    key={preset.title}
-                    type="button"
-                    onClick={() => addStandardPreset(preset)}
-                    className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-100 text-left hover:bg-gray-200 transition-colors"
-                  >
-                    <span
-                      className={cn(
-                        'flex items-center justify-center h-8 w-8 rounded-full shrink-0',
-                        CATEGORY_BADGE_CLASS[preset.category]
-                      )}
-                    >
-                      <Icon className="h-4 w-4" strokeWidth={2.5} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-gray-700">
-                        {preset.title}
-                        <span className="ml-1.5 text-xs font-normal text-gray-400">
-                          {preset.tasks.length} taken
-                        </span>
-                      </span>
-                      <span className="block truncate text-[11px] text-gray-400">
-                        {preset.tasks.join(' · ')}
+              {STANDARD_SETS.map(preset => (
+                <button
+                  key={preset.title}
+                  type="button"
+                  onClick={() => addStandardPreset(preset)}
+                  className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-100 text-left hover:bg-gray-200 transition-colors"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-gray-700">
+                      {preset.title}
+                      <span className="ml-1.5 text-xs font-normal text-gray-400">
+                        {preset.tasks.length} taken
                       </span>
                     </span>
-                    <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
-                  </button>
-                )
-              })}
+                    <span className="block truncate text-[11px] text-gray-400">
+                      {preset.tasks.join(' · ')}
+                    </span>
+                  </span>
+                  <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
+                </button>
+              ))}
             </div>
           </div>
         </div>
