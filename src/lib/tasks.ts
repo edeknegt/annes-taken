@@ -1,4 +1,4 @@
-import { Home, Briefcase, ShoppingCart, Gift, MessageSquare, FileText, BookHeart, Tag, type LucideIcon } from 'lucide-react'
+import { Home, Baby, ShoppingCart, Gift, MessageSquare, FileText, Camera, MoreHorizontal, type LucideIcon } from 'lucide-react'
 import type { TaskCategory } from './types'
 
 export const TASK_CATEGORIES: { value: TaskCategory; label: string }[] = [
@@ -36,8 +36,8 @@ export const CATEGORY_BADGE_CLASS: Record<TaskCategory, string> = {
   huishouden: 'bg-green-200 text-green-900',
   werk: 'bg-blue-200 text-blue-900',
   inkopen: 'bg-orange-200 text-orange-900',
-  cadeaus: 'bg-red-200 text-red-900',
-  berichten: 'bg-yellow-200 text-yellow-900',
+  cadeaus: 'bg-yellow-200 text-yellow-900',
+  berichten: 'bg-red-200 text-red-900',
   administratie: 'bg-purple-200 text-purple-900',
   herinneringen: 'bg-pink-200 text-pink-900',
   overig: 'bg-gray-200 text-gray-700',
@@ -48,11 +48,11 @@ export const CATEGORY_BADGE_CLASS: Record<TaskCategory, string> = {
 // In de categorie-kiezer staat het icoon náást de categorienaam.
 export const CATEGORY_ICON: Record<TaskCategory, LucideIcon> = {
   huishouden: Home,
-  werk: Briefcase,
+  werk: Baby,
   inkopen: ShoppingCart,
   cadeaus: Gift,
   berichten: MessageSquare,
   administratie: FileText,
-  herinneringen: BookHeart,
-  overig: Tag,
+  herinneringen: Camera,
+  overig: MoreHorizontal,
 }
