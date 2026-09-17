@@ -11,7 +11,8 @@ import { TASK_CATEGORIES, CATEGORY_BADGE_CLASS, CATEGORY_ICON, taskCategoryLabel
 import type { TaskCategory, TaskRule } from '@/lib/types'
 
 // Een geplande taak is een task_rule met rule_type 'once': op de ingestelde
-// datum maakt de Taken-pagina er automatisch een taak van in Vandaag. Dat is
+// datum maakt de Taken-pagina er automatisch een taak van in Vandaag — de dag
+// ervoor staat hij alvast in Snel. Dat is
 // exact hetzelfde mechanisme als achter Berichten, vandaar dat berichten hier
 // ook gewoon tussen staan — alles wat vooruit gepland is, staat op één plek.
 
@@ -152,7 +153,7 @@ export default function GeplandPage() {
           <div className="bg-white rounded-2xl border border-gray-200 px-4 py-12 text-center">
             <CalendarClock className="h-8 w-8 text-gray-300 mx-auto mb-3" />
             <p className="text-sm text-gray-500 mb-4">
-              Nog niets gepland. Een geplande taak verschijnt vanzelf in Vandaag op de dag die je kiest.
+              Nog niets gepland. Een geplande taak staat de dag ervoor al in Snel, en op de dag zelf in Vandaag.
             </p>
             <Button onClick={openNew}>
               <Plus className="h-4 w-4 mr-1" />

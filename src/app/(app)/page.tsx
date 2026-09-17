@@ -410,16 +410,18 @@ export default function VandaagPage() {
     //  • Berichten: 2 dagen van tevoren al zichtbaar in Later (je wilt een
     //    kaartje op tijd kunnen kopen), op de datum zelf naar Vandaag. De
     //    taaknaam bevat naam, beschrijving en datum in één leesbare zin.
-    //  • Alle andere categorieën (de Gepland-tab): geen aanlooptijd, de taak
-    //    verschijnt gewoon op de dag zelf in Vandaag, met de naam die je hebt
-    //    ingevoerd — de datum hoeft er dan niet meer bij.
-    const ONCE_LEAD_DAYS = 2
+    //  • Alle andere categorieën (de Gepland-tab): de dag ervoor alvast in
+    //    Snel, op de dag zelf in Vandaag, met de naam die je hebt ingevoerd —
+    //    de datum hoeft er dan niet meer bij.
+    const BERICHT_LEAD_DAYS = 2
+    const GEPLAND_LEAD_DAYS = 1
     const onceRules = allRules.filter(r => r.active && r.rule_type === 'once' && r.first_due_at)
     for (const rule of onceRules) {
       const isBericht = rule.category === 'berichten'
+      const leadList: TaskList = isBericht ? 'later' : 'quick'
       const dueDate = startOfDay(new Date(rule.first_due_at as string))
       const leadDate = new Date(dueDate)
-      if (isBericht) leadDate.setDate(leadDate.getDate() - ONCE_LEAD_DAYS)
+      leadDate.setDate(leadDate.getDate() - (isBericht ? BERICHT_LEAD_DAYS : GEPLAND_LEAD_DAYS))
       if (startOfDay(now).getTime() < leadDate.getTime()) continue
 
       const isDueToday = startOfDay(now).getTime() >= dueDate.getTime()
@@ -434,7 +436,7 @@ export default function VandaagPage() {
           : rule.description
             ? `${rule.name}: ${rule.description}`
             : rule.name
-        await insertTask(rule.category, taskName, rule.id, { list: isDueToday ? 'today' : 'later' })
+        await insertTask(rule.category, taskName, rule.id, { list: isDueToday ? 'today' : leadList })
         if (isDueToday) {
           await supabase.from('task_rules').update({ active: false }).eq('id', rule.id)
         }
