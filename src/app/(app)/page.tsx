@@ -55,6 +55,7 @@ const STANDARD_SINGLES: StandardTaskPreset[] = [
   { title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
   { title: 'Stofzuigen', category: 'huishouden', tasks: ['Stofzuigen'] },
   { title: 'WC schoonmaken', category: 'huishouden', tasks: ['WC schoonmaken'] },
+  { title: 'Badkamer schoonmaken', category: 'huishouden', tasks: ['Badkamer schoonmaken'] },
 ]
 const STANDARD_SETS: StandardTaskPreset[] = [
   {
