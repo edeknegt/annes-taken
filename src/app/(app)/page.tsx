@@ -695,21 +695,31 @@ export default function VandaagPage() {
         </div>
 
         <div className="max-w-2xl mx-auto mt-3 flex gap-1.5 overflow-x-auto pb-1 -mb-1">
-          {FILTER_CATEGORIES.map(c => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => toggleCategoryFilter(c.value)}
-              className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0',
-                selectedCategories.includes(c.value)
-                  ? 'bg-mint-500 text-mint-950'
-                  : 'bg-white/70 border border-gray-200 text-gray-600 hover:bg-white'
-              )}
-            >
-              {c.label}
-            </button>
-          ))}
+          {/* Filter op categorie: hetzelfde icoon in hetzelfde kleurtje als op
+              de taken zelf. Een actief filter is voluit gekleurd met een
+              mint-ring eromheen, een inactief filter staat gedempt — zo blijft
+              zichtbaar welke kleur bij welke categorie hoort. */}
+          {FILTER_CATEGORIES.map(c => {
+            const Icon = CATEGORY_ICON[c.value]
+            const selected = selectedCategories.includes(c.value)
+            return (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => toggleCategoryFilter(c.value)}
+                aria-pressed={selected}
+                aria-label={c.label}
+                title={c.label}
+                className={cn(
+                  'flex items-center justify-center w-9 h-9 rounded-full shrink-0 transition-all',
+                  CATEGORY_BADGE_CLASS[c.value],
+                  selected ? 'ring-2 ring-mint-600' : 'opacity-40 hover:opacity-70'
+                )}
+              >
+                <Icon className="h-4 w-4" strokeWidth={2.5} />
+              </button>
+            )
+          })}
         </div>
       </div>
 
