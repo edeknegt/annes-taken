@@ -47,13 +47,23 @@ const CATEGORY_ORDER: Record<TaskCategory, number> = Object.fromEntries(
 // op een onderregel zien, zodat je weet wat je erbij haalt.
 // Bewust zónder eigen iconen: een icoon staat in deze app voor een categorie,
 // en een tweede betekenis erbij maakt het alleen maar verwarrend.
+// title is alleen het label in de footer; wat er in de lijst komt staat in
+// tasks. Onder het kopje "Benedenverdieping schoonmaken" volstaat dus
+// "Stoffen", terwijl de taak "Benedenverdieping stoffen" heet.
 interface StandardTaskPreset {
   title: string
   category: TaskCategory
   tasks: string[]
 }
+// Een label als "Stoffen" komt in meer dan één groep voor, dus de taaknamen
+// vormen de sleutel waaronder we onthouden wat er is toegevoegd.
+function presetKey(preset: StandardTaskPreset): string {
+  return preset.tasks.join('|')
+}
+// columns: korte labels naast elkaar in plaats van onder elkaar.
 interface StandardTaskGroup {
   title: string
+  columns?: 2 | 3
   presets: StandardTaskPreset[]
 }
 const STANDARD_GROUPS: StandardTaskGroup[] = [
@@ -79,24 +89,27 @@ const STANDARD_GROUPS: StandardTaskGroup[] = [
   },
   {
     title: 'Benedenverdieping schoonmaken',
+    columns: 3,
     presets: [
-      { title: 'Benedenverdieping stoffen', category: 'huishouden', tasks: ['Benedenverdieping stoffen'] },
-      { title: 'Benedenverdieping zuigen', category: 'huishouden', tasks: ['Benedenverdieping zuigen'] },
-      { title: 'Benedenverdieping dweilen', category: 'huishouden', tasks: ['Benedenverdieping dweilen'] },
+      { title: 'Stoffen', category: 'huishouden', tasks: ['Benedenverdieping stoffen'] },
+      { title: 'Zuigen', category: 'huishouden', tasks: ['Benedenverdieping zuigen'] },
+      { title: 'Dweilen', category: 'huishouden', tasks: ['Benedenverdieping dweilen'] },
     ],
   },
   {
     title: 'Bovenverdieping schoonmaken',
+    columns: 2,
     presets: [
-      { title: 'Bovenverdieping stoffen', category: 'huishouden', tasks: ['Bovenverdieping stoffen'] },
-      { title: 'Bovenverdieping zuigen', category: 'huishouden', tasks: ['Bovenverdieping zuigen'] },
+      { title: 'Stoffen', category: 'huishouden', tasks: ['Bovenverdieping stoffen'] },
+      { title: 'Zuigen', category: 'huishouden', tasks: ['Bovenverdieping zuigen'] },
     ],
   },
   {
     title: "WC's schoonmaken",
+    columns: 2,
     presets: [
-      { title: 'WC beneden schoonmaken', category: 'huishouden', tasks: ['WC beneden schoonmaken'] },
-      { title: 'WC boven schoonmaken', category: 'huishouden', tasks: ['WC boven schoonmaken'] },
+      { title: 'Beneden', category: 'huishouden', tasks: ['WC beneden schoonmaken'] },
+      { title: 'Boven', category: 'huishouden', tasks: ['WC boven schoonmaken'] },
     ],
   },
   {
@@ -601,12 +614,13 @@ export default function VandaagPage() {
   // die taken weer weg. De footer blijft open — meestal voeg je er een paar
   // achter elkaar toe, en zo kun je een misklik meteen herstellen.
   const toggleStandardPreset = async (preset: StandardTaskPreset) => {
-    const addedIds = addedPresets[preset.title]
+    const key = presetKey(preset)
+    const addedIds = addedPresets[key]
 
     if (addedIds) {
       setAddedPresets(prev => {
         const next = { ...prev }
-        delete next[preset.title]
+        delete next[key]
         return next
       })
       setTasks(prev => prev.filter(t => !addedIds.includes(t.id)))
@@ -627,7 +641,7 @@ export default function VandaagPage() {
     if (inserted) {
       const insertedTasks = inserted as Task[]
       setTasks(prev => [...prev, ...insertedTasks])
-      setAddedPresets(prev => ({ ...prev, [preset.title]: insertedTasks.map(t => t.id) }))
+      setAddedPresets(prev => ({ ...prev, [key]: insertedTasks.map(t => t.id) }))
     }
   }
 
@@ -968,9 +982,36 @@ export default function VandaagPage() {
               <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
                 {group.title}
               </h3>
-              <div className="space-y-1.5">
+              <div
+                className={cn(
+                  group.columns === 3
+                    ? 'grid grid-cols-3 gap-1.5'
+                    : group.columns === 2
+                      ? 'grid grid-cols-2 gap-1.5'
+                      : 'space-y-1.5'
+                )}
+              >
                 {group.presets.map(preset => {
-                  const added = preset.title in addedPresets
+                  const added = presetKey(preset) in addedPresets
+                  // In kolommen is er geen ruimte voor een plus én een tekst:
+                  // daar staat het label gecentreerd, met een vinkje zodra de
+                  // taak op de lijst staat.
+                  if (group.columns) {
+                    return (
+                      <button
+                        key={preset.title}
+                        type="button"
+                        onClick={() => toggleStandardPreset(preset)}
+                        className={cn(
+                          'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg text-sm font-medium text-gray-700 transition-colors',
+                          added ? 'bg-mint-100 hover:bg-mint-200' : 'bg-gray-100 hover:bg-gray-200'
+                        )}
+                      >
+                        {added && <Check className="h-3.5 w-3.5 text-mint-700 shrink-0" strokeWidth={3} />}
+                        <span className="truncate">{preset.title}</span>
+                      </button>
+                    )
+                  }
                   return (
                   <button
                     key={preset.title}
