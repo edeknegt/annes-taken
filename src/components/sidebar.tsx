@@ -4,7 +4,7 @@ import { useRef, useState, useLayoutEffect, useEffect, useSyncExternalStore } fr
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { ListChecks, Settings } from 'lucide-react'
+import { ListChecks, CalendarClock, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -34,6 +34,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { tab: 'vandaag', label: 'Taken', href: '/', icon: ListChecks },
+  { tab: 'gepland', label: 'Gepland', href: '/gepland', icon: CalendarClock },
   { tab: 'beheer', label: 'Beheer', href: '/beheer', icon: Settings },
 ]
 

@@ -406,15 +406,20 @@ export default function VandaagPage() {
       }
     }
 
-    // 'once' (Berichten): 2 dagen van tevoren al zichtbaar in Later, op de
-    // datum zelf automatisch verplaatst naar Vandaag. Taaknaam bevat naam,
-    // beschrijving en datum in één leesbare zin.
+    // 'once' — eenmalig op een vaste datum. Twee smaken:
+    //  • Berichten: 2 dagen van tevoren al zichtbaar in Later (je wilt een
+    //    kaartje op tijd kunnen kopen), op de datum zelf naar Vandaag. De
+    //    taaknaam bevat naam, beschrijving en datum in één leesbare zin.
+    //  • Alle andere categorieën (de Gepland-tab): geen aanlooptijd, de taak
+    //    verschijnt gewoon op de dag zelf in Vandaag, met de naam die je hebt
+    //    ingevoerd — de datum hoeft er dan niet meer bij.
     const ONCE_LEAD_DAYS = 2
     const onceRules = allRules.filter(r => r.active && r.rule_type === 'once' && r.first_due_at)
     for (const rule of onceRules) {
+      const isBericht = rule.category === 'berichten'
       const dueDate = startOfDay(new Date(rule.first_due_at as string))
       const leadDate = new Date(dueDate)
-      leadDate.setDate(leadDate.getDate() - ONCE_LEAD_DAYS)
+      if (isBericht) leadDate.setDate(leadDate.getDate() - ONCE_LEAD_DAYS)
       if (startOfDay(now).getTime() < leadDate.getTime()) continue
 
       const isDueToday = startOfDay(now).getTime() >= dueDate.getTime()
@@ -422,9 +427,13 @@ export default function VandaagPage() {
 
       if (!existingTask) {
         const dateLabel = formatDayMonthYear(dueDate.getDate(), dueDate.getMonth() + 1, dueDate.getFullYear())
-        const taskName = rule.description
-          ? `Bericht ${rule.name}: ${rule.description} (${dateLabel})`
-          : `Bericht ${rule.name} (${dateLabel})`
+        const taskName = isBericht
+          ? rule.description
+            ? `Bericht ${rule.name}: ${rule.description} (${dateLabel})`
+            : `Bericht ${rule.name} (${dateLabel})`
+          : rule.description
+            ? `${rule.name}: ${rule.description}`
+            : rule.name
         await insertTask(rule.category, taskName, rule.id, { list: isDueToday ? 'today' : 'later' })
         if (isDueToday) {
           await supabase.from('task_rules').update({ active: false }).eq('id', rule.id)
