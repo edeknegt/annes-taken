@@ -714,25 +714,24 @@ export default function VandaagPage() {
       {/* Spacer onder fixed header */}
       <div className="h-32 sm:h-36 lg:h-40" aria-hidden />
 
-      {/* Eén knop naar de standaardtaken-footer: veelvoorkomende, niet-
-          terugkerende taken (los of als set) in één tik toevoegen aan Vandaag. */}
-      <div className="mt-2">
-        <button
-          type="button"
-          onClick={() => setStandardSheetOpen(true)}
-          className="flex w-full items-center justify-center gap-1.5 py-1.5 rounded-xl border border-gray-200 bg-white/70 text-gray-500 text-xs font-medium hover:bg-white hover:text-gray-700 active:scale-95 transition-all touch-manipulation"
-        >
-          <ListPlus className="h-3.5 w-3.5" strokeWidth={2.5} />
-          Standaardtaak toevoegen
-        </button>
-      </div>
-
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <section className="mt-4 pb-24 space-y-6">
           <div>
-            <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Vandaag
-            </h2>
+            {/* De standaardtaken-knop staat bewust naast deze kop: wat je daar
+                kiest, komt in Vandaag terecht. */}
+            <div className="mb-2 px-1 flex items-center justify-between gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                Vandaag
+              </h2>
+              <button
+                type="button"
+                onClick={() => setStandardSheetOpen(true)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white/70 text-gray-500 text-xs font-medium hover:bg-white hover:text-gray-700 active:scale-95 transition-all touch-manipulation"
+              >
+                <ListPlus className="h-3.5 w-3.5" strokeWidth={2.5} />
+                Standaardtaak
+              </button>
+            </div>
             <SectionDropZone id={SECTION_TODAY}>
               <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                 {todayTasks.length === 0 && (
