@@ -718,9 +718,10 @@ export default function VandaagPage() {
           </div>
         </div>
 
-        {/* py-1 / -my-1: horizontaal scrollen knipt verticaal af, en zonder
-            die ruimte valt de ring om een actief filter weg. */}
-        <div className="max-w-2xl mx-auto mt-3 flex gap-1.5 overflow-x-auto py-1 -my-1">
+        {/* De acht filters verdelen samen precies de breedte van de takenlijst
+            eronder (flex-1 per knop). py-1 / -my-1 houdt ruimte voor de ring om
+            een actief filter. */}
+        <div className="max-w-2xl mx-auto mt-3 flex gap-1.5 py-1 -my-1">
           {/* Filter op categorie: hetzelfde icoon in hetzelfde kleurtje als op
               de taken zelf. Een actief filter is voluit gekleurd met een
               mint-ring eromheen, een inactief filter staat gedempt — zo blijft
@@ -737,7 +738,7 @@ export default function VandaagPage() {
                 aria-label={c.label}
                 title={c.label}
                 className={cn(
-                  'flex items-center justify-center w-9 h-9 rounded-full shrink-0 transition-all',
+                  'flex flex-1 items-center justify-center h-9 rounded-xl transition-all',
                   CATEGORY_BADGE_CLASS[c.value],
                   selected ? 'ring-2 ring-mint-600' : 'opacity-40 hover:opacity-70'
                 )}
