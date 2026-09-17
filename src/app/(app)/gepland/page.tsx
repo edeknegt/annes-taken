@@ -228,12 +228,20 @@ export default function GeplandPage() {
             placeholder="Bijv. Belastingaangifte invullen"
           />
 
-          <Input
-            label="Op welke dag"
-            type="date"
-            value={form.date}
-            onChange={(e) => setForm(prev => ({ ...prev, date: e.target.value }))}
-          />
+          {/* Zelfde opzet als de datumvelden in Beheer: een date-input heeft een
+              eigen minimumbreedte en loopt buiten het scherm zonder wrapper met
+              overflow-hidden en min-w-0. */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+            <div className="rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-mint-200 focus-within:border-mint-500">
+              <input
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm(prev => ({ ...prev, date: e.target.value }))}
+                className="block w-full min-w-0 px-3 py-2 text-sm bg-transparent outline-none"
+              />
+            </div>
+          </div>
 
           <div>
             <span className="block text-sm font-medium text-gray-700 mb-1">Categorie</span>
