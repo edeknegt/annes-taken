@@ -55,6 +55,7 @@ const STANDARD_SINGLES: StandardTaskPreset[] = [
   { title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
   { title: 'Stofzuigen', category: 'huishouden', tasks: ['Stofzuigen'] },
   { title: 'Dweilen', category: 'huishouden', tasks: ['Dweilen'] },
+  { title: 'WC schoonmaken', category: 'huishouden', tasks: ['WC schoonmaken'] },
 ]
 const STANDARD_SETS: StandardTaskPreset[] = [
   {
@@ -76,6 +77,11 @@ const STANDARD_SETS: StandardTaskPreset[] = [
     title: 'Huis schoonmaken',
     category: 'huishouden',
     tasks: ['Stofzuigen', 'Dweilen'],
+  },
+  {
+    title: "WC's schoonmaken",
+    category: 'huishouden',
+    tasks: ['WC boven schoonmaken', 'WC beneden schoonmaken'],
   },
 ]
 
