@@ -42,9 +42,9 @@ const CATEGORY_ORDER: Record<TaskCategory, number> = Object.fromEntries(
 ) as Record<TaskCategory, number>
 
 // Standaardtaken: veelvoorkomende, niet-terugkerende taken die je met één tik
-// aan Vandaag toevoegt, samen in één footer (bottom sheet). Eerst de losse
-// taken, daarna de sets — een set voegt in één keer meerdere taken toe en is
-// aan zijn onderregel met taaknamen te herkennen.
+// aan Vandaag toevoegt, samen in één footer (bottom sheet) en gegroepeerd per
+// klus. Een knop die meerdere taken tegelijk toevoegt (zoals de was) laat ze
+// op een onderregel zien, zodat je weet wat je erbij haalt.
 // Bewust zónder eigen iconen: een icoon staat in deze app voor een categorie,
 // en een tweede betekenis erbij maakt het alleen maar verwarrend.
 interface StandardTaskPreset {
@@ -52,33 +52,60 @@ interface StandardTaskPreset {
   category: TaskCategory
   tasks: string[]
 }
-const STANDARD_SINGLES: StandardTaskPreset[] = [
-  { title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
-  { title: 'Benedenverdieping zuigen', category: 'huishouden', tasks: ['Benedenverdieping zuigen'] },
-  { title: 'Bovenverdieping zuigen', category: 'huishouden', tasks: ['Bovenverdieping zuigen'] },
-  { title: 'Benedenverdieping stoffen', category: 'huishouden', tasks: ['Benedenverdieping stoffen'] },
-  { title: 'Bovenverdieping stoffen', category: 'huishouden', tasks: ['Bovenverdieping stoffen'] },
-  { title: 'Benedenverdieping dweilen', category: 'huishouden', tasks: ['Benedenverdieping dweilen'] },
-  { title: 'WC beneden schoonmaken', category: 'huishouden', tasks: ['WC beneden schoonmaken'] },
-  { title: 'WC boven schoonmaken', category: 'huishouden', tasks: ['WC boven schoonmaken'] },
-  { title: 'Badkamer schoonmaken', category: 'huishouden', tasks: ['Badkamer schoonmaken'] },
-  { title: 'Keuken schoonmaken', category: 'huishouden', tasks: ['Keuken schoonmaken'] },
-]
-const STANDARD_SETS: StandardTaskPreset[] = [
+interface StandardTaskGroup {
+  title: string
+  presets: StandardTaskPreset[]
+}
+const STANDARD_GROUPS: StandardTaskGroup[] = [
   {
-    title: 'Gekleurde was',
-    category: 'huishouden',
-    tasks: [
-      'Gekleurde was in de wasmachine',
-      'Gekleurde was ophangen',
-      'Gekleurde was afhalen',
-      'Gekleurde was opvouwen',
+    title: 'Was doen',
+    presets: [
+      {
+        title: 'Gekleurde was',
+        category: 'huishouden',
+        tasks: [
+          'Gekleurde was in de wasmachine',
+          'Gekleurde was ophangen',
+          'Gekleurde was afhalen',
+          'Gekleurde was opvouwen',
+        ],
+      },
+      {
+        title: 'Witte was',
+        category: 'huishouden',
+        tasks: ['Witte was in de wasmachine', 'Witte was ophangen', 'Witte was afhalen', 'Witte was opvouwen'],
+      },
     ],
   },
   {
-    title: 'Witte was',
-    category: 'huishouden',
-    tasks: ['Witte was in de wasmachine', 'Witte was ophangen', 'Witte was afhalen', 'Witte was opvouwen'],
+    title: 'Benedenverdieping schoonmaken',
+    presets: [
+      { title: 'Benedenverdieping stoffen', category: 'huishouden', tasks: ['Benedenverdieping stoffen'] },
+      { title: 'Benedenverdieping zuigen', category: 'huishouden', tasks: ['Benedenverdieping zuigen'] },
+      { title: 'Benedenverdieping dweilen', category: 'huishouden', tasks: ['Benedenverdieping dweilen'] },
+    ],
+  },
+  {
+    title: 'Bovenverdieping schoonmaken',
+    presets: [
+      { title: 'Bovenverdieping stoffen', category: 'huishouden', tasks: ['Bovenverdieping stoffen'] },
+      { title: 'Bovenverdieping zuigen', category: 'huishouden', tasks: ['Bovenverdieping zuigen'] },
+    ],
+  },
+  {
+    title: "WC's schoonmaken",
+    presets: [
+      { title: 'WC beneden schoonmaken', category: 'huishouden', tasks: ['WC beneden schoonmaken'] },
+      { title: 'WC boven schoonmaken', category: 'huishouden', tasks: ['WC boven schoonmaken'] },
+    ],
+  },
+  {
+    title: 'Overig',
+    presets: [
+      { title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
+      { title: 'Keuken schoonmaken', category: 'huishouden', tasks: ['Keuken schoonmaken'] },
+      { title: 'Badkamer schoonmaken', category: 'huishouden', tasks: ['Badkamer schoonmaken'] },
+    ],
   },
 ]
 
@@ -912,41 +939,40 @@ export default function VandaagPage() {
         onClose={() => setStandardSheetOpen(false)}
         title="Standaardtaak toevoegen"
       >
-        <div className="space-y-1.5">
-          {STANDARD_SINGLES.map(preset => (
-            <button
-              key={preset.title}
-              type="button"
-              onClick={() => addStandardPreset(preset)}
-              className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-100 text-left hover:bg-gray-200 transition-colors"
-            >
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-700">
-                {preset.title}
-              </span>
-              <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
-            </button>
-          ))}
-
-          {STANDARD_SETS.map(preset => (
-            <button
-              key={preset.title}
-              type="button"
-              onClick={() => addStandardPreset(preset)}
-              className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-100 text-left hover:bg-gray-200 transition-colors"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium text-gray-700">
-                  {preset.title}
-                  <span className="ml-1.5 text-xs font-normal text-gray-400">
-                    {preset.tasks.length} taken
-                  </span>
-                </span>
-                <span className="block truncate text-[11px] text-gray-400">
-                  {preset.tasks.join(' · ')}
-                </span>
-              </span>
-              <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
-            </button>
+        <div className="space-y-4">
+          {STANDARD_GROUPS.map(group => (
+            <div key={group.title}>
+              <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                {group.title}
+              </h3>
+              <div className="space-y-1.5">
+                {group.presets.map(preset => (
+                  <button
+                    key={preset.title}
+                    type="button"
+                    onClick={() => addStandardPreset(preset)}
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-100 text-left hover:bg-gray-200 transition-colors"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-gray-700">
+                        {preset.title}
+                        {preset.tasks.length > 1 && (
+                          <span className="ml-1.5 text-xs font-normal text-gray-400">
+                            {preset.tasks.length} taken
+                          </span>
+                        )}
+                      </span>
+                      {preset.tasks.length > 1 && (
+                        <span className="block truncate text-[11px] text-gray-400">
+                          {preset.tasks.join(' · ')}
+                        </span>
+                      )}
+                    </span>
+                    <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </BottomSheet>
