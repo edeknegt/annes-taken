@@ -5,7 +5,6 @@ import { Plus, X, CalendarClock } from 'lucide-react'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { TASK_CATEGORIES, CATEGORY_BADGE_CLASS, CATEGORY_ICON, taskCategoryLabel } from '@/lib/tasks'
@@ -38,13 +37,15 @@ function formatLongDate(iso: string): string {
 interface PlannedForm {
   id: string | null
   name: string
-  description: string
+  // Berichten (ingepland via Beheer) kunnen een toelichting hebben. Die is
+  // hier niet in te vullen, maar mag bij het bewerken ook niet sneuvelen.
+  description: string | null
   date: string
   category: TaskCategory
 }
 
 function emptyForm(): PlannedForm {
-  return { id: null, name: '', description: '', date: todayIso(), category: DEFAULT_CATEGORY }
+  return { id: null, name: '', description: null, date: todayIso(), category: DEFAULT_CATEGORY }
 }
 
 export default function GeplandPage() {
@@ -82,7 +83,7 @@ export default function GeplandPage() {
     setForm({
       id: rule.id,
       name: rule.name,
-      description: rule.description ?? '',
+      description: rule.description,
       date: (rule.first_due_at ?? todayIso()).slice(0, 10),
       category: rule.category,
     })
@@ -97,7 +98,7 @@ export default function GeplandPage() {
     const payload = {
       category: form.category,
       name,
-      description: form.description.trim() || null,
+      description: form.description,
       rule_type: 'once' as const,
       interval_n: 1,
       recur_unit: null,
@@ -232,7 +233,6 @@ export default function GeplandPage() {
             type="date"
             value={form.date}
             onChange={(e) => setForm(prev => ({ ...prev, date: e.target.value }))}
-            helperText="Op deze dag staat de taak vanzelf in Vandaag."
           />
 
           <div>
@@ -265,13 +265,6 @@ export default function GeplandPage() {
               })}
             </div>
           </div>
-
-          <Textarea
-            label="Toelichting (optioneel)"
-            value={form.description}
-            onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-            rows={2}
-          />
 
           <div className="flex justify-end gap-3 pt-1">
             <Button variant="outline" onClick={() => setEditorOpen(false)}>
