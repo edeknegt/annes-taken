@@ -42,8 +42,9 @@ const CATEGORY_ORDER: Record<TaskCategory, number> = Object.fromEntries(
 ) as Record<TaskCategory, number>
 
 // Standaardtaken: veelvoorkomende, niet-terugkerende taken die je met één tik
-// aan Vandaag toevoegt. Ze staan samen in één footer (bottom sheet), verdeeld
-// in losse taken en sets — een set voegt in één keer meerdere taken toe.
+// aan Vandaag toevoegt, samen in één footer (bottom sheet). Eerst de losse
+// taken, daarna de sets — een set voegt in één keer meerdere taken toe en is
+// aan zijn onderregel met taaknamen te herkennen.
 // Bewust zónder eigen iconen: een icoon staat in deze app voor een categorie,
 // en een tweede betekenis erbij maakt het alleen maar verwarrend.
 interface StandardTaskPreset {
@@ -53,9 +54,14 @@ interface StandardTaskPreset {
 }
 const STANDARD_SINGLES: StandardTaskPreset[] = [
   { title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
-  { title: 'Stofzuigen', category: 'huishouden', tasks: ['Stofzuigen'] },
-  { title: 'WC schoonmaken', category: 'huishouden', tasks: ['WC schoonmaken'] },
+  { title: 'Benedenverdieping zuigen', category: 'huishouden', tasks: ['Benedenverdieping zuigen'] },
+  { title: 'Bovenverdieping zuigen', category: 'huishouden', tasks: ['Bovenverdieping zuigen'] },
+  { title: 'Benedenverdieping stoffen', category: 'huishouden', tasks: ['Benedenverdieping stoffen'] },
+  { title: 'Bovenverdieping stoffen', category: 'huishouden', tasks: ['Bovenverdieping stoffen'] },
+  { title: 'WC beneden schoonmaken', category: 'huishouden', tasks: ['WC beneden schoonmaken'] },
+  { title: 'WC boven schoonmaken', category: 'huishouden', tasks: ['WC boven schoonmaken'] },
   { title: 'Badkamer schoonmaken', category: 'huishouden', tasks: ['Badkamer schoonmaken'] },
+  { title: 'Keuken schoonmaken', category: 'huishouden', tasks: ['Keuken schoonmaken'] },
 ]
 const STANDARD_SETS: StandardTaskPreset[] = [
   {
@@ -77,11 +83,6 @@ const STANDARD_SETS: StandardTaskPreset[] = [
     title: 'Huis schoonmaken',
     category: 'huishouden',
     tasks: ['Stofzuigen', 'Dweilen'],
-  },
-  {
-    title: "WC's schoonmaken",
-    category: 'huishouden',
-    tasks: ['WC boven schoonmaken', 'WC beneden schoonmaken'],
   },
 ]
 
@@ -905,60 +906,49 @@ export default function VandaagPage() {
         </div>
       </BottomSheet>
 
-      {/* Footer met standaardtaken: bovenin losse taken, daaronder sets die in
-          één tik meerdere taken toevoegen. Alles komt in Vandaag terecht. */}
+      {/* Footer met standaardtaken: eerst de losse taken, daaronder de sets
+          die in één tik meerdere taken toevoegen. Alles komt in Vandaag. */}
       <BottomSheet
         open={standardSheetOpen}
         onClose={() => setStandardSheetOpen(false)}
         title="Standaardtaak toevoegen"
       >
-        <div className="space-y-4">
-          <div>
-            <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Losse taken
-            </h3>
-            <div className="grid grid-cols-2 gap-1.5">
-              {STANDARD_SINGLES.map(preset => (
-                <button
-                  key={preset.title}
-                  type="button"
-                  onClick={() => addStandardPreset(preset)}
-                  className="px-3 py-2.5 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium text-left truncate hover:bg-gray-200 transition-colors"
-                >
-                  {preset.title}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="space-y-1.5">
+          {STANDARD_SINGLES.map(preset => (
+            <button
+              key={preset.title}
+              type="button"
+              onClick={() => addStandardPreset(preset)}
+              className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-100 text-left hover:bg-gray-200 transition-colors"
+            >
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-700">
+                {preset.title}
+              </span>
+              <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
+            </button>
+          ))}
 
-          <div>
-            <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Sets
-            </h3>
-            <div className="space-y-1.5">
-              {STANDARD_SETS.map(preset => (
-                <button
-                  key={preset.title}
-                  type="button"
-                  onClick={() => addStandardPreset(preset)}
-                  className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-100 text-left hover:bg-gray-200 transition-colors"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-gray-700">
-                      {preset.title}
-                      <span className="ml-1.5 text-xs font-normal text-gray-400">
-                        {preset.tasks.length} taken
-                      </span>
-                    </span>
-                    <span className="block truncate text-[11px] text-gray-400">
-                      {preset.tasks.join(' · ')}
-                    </span>
+          {STANDARD_SETS.map(preset => (
+            <button
+              key={preset.title}
+              type="button"
+              onClick={() => addStandardPreset(preset)}
+              className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-100 text-left hover:bg-gray-200 transition-colors"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-gray-700">
+                  {preset.title}
+                  <span className="ml-1.5 text-xs font-normal text-gray-400">
+                    {preset.tasks.length} taken
                   </span>
-                  <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
-                </button>
-              ))}
-            </div>
-          </div>
+                </span>
+                <span className="block truncate text-[11px] text-gray-400">
+                  {preset.tasks.join(' · ')}
+                </span>
+              </span>
+              <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
+            </button>
+          ))}
         </div>
       </BottomSheet>
 
