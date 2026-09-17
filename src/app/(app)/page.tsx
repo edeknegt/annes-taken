@@ -89,7 +89,7 @@ const STANDARD_GROUPS: StandardTaskGroup[] = [
   },
   {
     title: 'Benedenverdieping schoonmaken',
-    columns: 3,
+    columns: 2,
     presets: [
       { title: 'Stoffen', category: 'huishouden', tasks: ['Benedenverdieping stoffen'] },
       { title: 'Zuigen', category: 'huishouden', tasks: ['Benedenverdieping zuigen'] },
@@ -114,6 +114,7 @@ const STANDARD_GROUPS: StandardTaskGroup[] = [
   },
   {
     title: 'Overig',
+    columns: 2,
     presets: [
       { title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
       { title: 'Keuken schoonmaken', category: 'huishouden', tasks: ['Keuken schoonmaken'] },
@@ -1008,7 +1009,7 @@ export default function VandaagPage() {
                         )}
                       >
                         {added && <Check className="h-3.5 w-3.5 text-mint-700 shrink-0" strokeWidth={3} />}
-                        <span className="truncate">{preset.title}</span>
+                        <span className="text-center leading-tight">{preset.title}</span>
                       </button>
                     )
                   }
