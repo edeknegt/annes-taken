@@ -1,3 +1,4 @@
+import { Home, Briefcase, ShoppingCart, Gift, MessageSquare, Tag, type LucideIcon } from 'lucide-react'
 import type { TaskCategory } from './types'
 
 export const TASK_CATEGORIES: { value: TaskCategory; label: string }[] = [
@@ -36,4 +37,16 @@ export const CATEGORY_BADGE_CLASS: Record<TaskCategory, string> = {
   cadeaus: 'bg-red-200 text-red-900',
   berichten: 'bg-yellow-200 text-yellow-900',
   overig: 'bg-gray-200 text-gray-700',
+}
+
+// Icoon per categorie — op de takenlijst staat alleen het icoon (in het
+// pastelkleurtje hierboven), zodat de badge geen halve regel meer opslokt.
+// In de categorie-kiezer staat het icoon náást de categorienaam.
+export const CATEGORY_ICON: Record<TaskCategory, LucideIcon> = {
+  huishouden: Home,
+  werk: Briefcase,
+  inkopen: ShoppingCart,
+  cadeaus: Gift,
+  berichten: MessageSquare,
+  overig: Tag,
 }

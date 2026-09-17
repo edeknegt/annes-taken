@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { flushSync } from 'react-dom'
-import { Plus, Check, X, Trash2, ArrowDownAZ, ShoppingCart, WashingMachine, BrushCleaning } from 'lucide-react'
+import { Plus, Check, X, Trash2, ArrowDownAZ, ShoppingCart, WashingMachine, BrushCleaning, Droplets, ListPlus } from 'lucide-react'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { Button } from '@/components/ui/button'
 import {
@@ -27,7 +27,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { isRuleDue, nextDueAt, formatDayMonth, formatDayMonthYear } from '@/lib/recurring'
 import { HARDCODED_GIFT_TASKS, isHardcodedDue } from '@/lib/gift-holidays'
-import { TASK_CATEGORIES, FILTER_CATEGORIES, CATEGORY_BADGE_CLASS, taskCategoryLabel } from '@/lib/tasks'
+import { TASK_CATEGORIES, FILTER_CATEGORIES, CATEGORY_BADGE_CLASS, CATEGORY_ICON, taskCategoryLabel } from '@/lib/tasks'
 import { setTodayCount } from '@/lib/task-counts'
 import type { Task, TaskCategory, TaskList, TaskRule } from '@/lib/types'
 
@@ -41,24 +41,33 @@ const CATEGORY_ORDER: Record<TaskCategory, number> = Object.fromEntries(
   TASK_CATEGORIES.map((c, i) => [c.value, i])
 ) as Record<TaskCategory, number>
 
-// Snelknoppen boven Vandaag voor veelvoorkomende, niet-terugkerende taken —
-// één tik voegt alle taken uit de groep meteen toe aan Vandaag, alsof ze
-// handmatig zijn toegevoegd.
-interface QuickAddPreset {
+// Standaardtaken: veelvoorkomende, niet-terugkerende taken die je met één tik
+// aan Vandaag toevoegt. Ze staan samen in één footer (bottom sheet), verdeeld
+// in losse taken en sets — een set voegt in één keer meerdere taken toe.
+interface StandardTaskPreset {
   icon: typeof ShoppingCart
   title: string
   category: TaskCategory
   tasks: string[]
 }
-const QUICK_ADD_PRESETS: QuickAddPreset[] = [
+const STANDARD_SINGLES: StandardTaskPreset[] = [
   { icon: ShoppingCart, title: 'Boodschappen doen', category: 'huishouden', tasks: ['Boodschappen doen'] },
+  { icon: BrushCleaning, title: 'Stofzuigen', category: 'huishouden', tasks: ['Stofzuigen'] },
+  { icon: Droplets, title: 'Dweilen', category: 'huishouden', tasks: ['Dweilen'] },
+]
+const STANDARD_SETS: StandardTaskPreset[] = [
   {
     icon: WashingMachine,
-    title: 'Was in de wasmachine, was ophangen, was afhalen, was opvouwen',
+    title: 'Was doen',
     category: 'huishouden',
     tasks: ['Was in de wasmachine', 'Was ophangen', 'Was afhalen', 'Was opvouwen'],
   },
-  { icon: BrushCleaning, title: 'Stofzuigen en dweilen', category: 'huishouden', tasks: ['Stofzuigen', 'Dweilen'] },
+  {
+    icon: BrushCleaning,
+    title: 'Huis schoonmaken',
+    category: 'huishouden',
+    tasks: ['Stofzuigen', 'Dweilen'],
+  },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,6 +92,7 @@ function SortableTask({ task, onToggle, onDelete, onRename, onChangeCategory }: 
   }
 
   const checked = task.checked_at !== null
+  const CategoryIcon = CATEGORY_ICON[task.category]
 
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
@@ -180,14 +190,14 @@ function SortableTask({ task, onToggle, onDelete, onRename, onChangeCategory }: 
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onChangeCategory(task) }}
           className={cn(
-            'text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap',
+            'flex items-center justify-center h-6 w-6 rounded-full shrink-0',
             CATEGORY_BADGE_CLASS[task.category],
             checked && 'opacity-50'
           )}
-          aria-label="Categorie wijzigen"
-          title="Categorie wijzigen"
+          aria-label={`Categorie: ${taskCategoryLabel(task.category)} — wijzigen`}
+          title={`${taskCategoryLabel(task.category)} — categorie wijzigen`}
         >
-          {taskCategoryLabel(task.category)}
+          <CategoryIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
         </button>
 
         <button
@@ -244,6 +254,8 @@ export default function VandaagPage() {
   // (Vandaag/Later) — i.p.v. een inline invoerregel, omdat er nu meer dan
   // alleen de naam is in te vullen.
   const [addSheetOpen, setAddSheetOpen] = useState(false)
+  // Footer met standaardtaken (losse taken en sets) om snel toe te voegen.
+  const [standardSheetOpen, setStandardSheetOpen] = useState(false)
   const [newTaskName, setNewTaskName] = useState('')
   const [newTaskCategory, setNewTaskCategory] = useState<TaskCategory>(DEFAULT_CATEGORY)
   const [newTaskList, setNewTaskList] = useState<TaskList>('today')
@@ -545,9 +557,10 @@ export default function VandaagPage() {
     setAddSheetOpen(false)
   }
 
-  // Snelknop: voegt in één keer alle taken uit een preset toe aan Vandaag,
+  // Standaardtaak: voegt in één keer alle taken uit een preset toe aan Vandaag,
   // alsof ze los, handmatig zijn toegevoegd.
-  const quickAddPreset = async (preset: QuickAddPreset) => {
+  const addStandardPreset = async (preset: StandardTaskPreset) => {
+    setStandardSheetOpen(false)
     const bucket = tasks.filter(t => t.list === 'today')
     let nextSort = bucket.length > 0 ? Math.max(...bucket.map(t => t.manual_sort_order)) + 1 : 0
     const rows = preset.tasks.map(name => ({
@@ -692,25 +705,17 @@ export default function VandaagPage() {
       {/* Spacer onder fixed header */}
       <div className="h-32 sm:h-36 lg:h-40" aria-hidden />
 
-      {/* Snelknoppen: veelvoorkomende, niet-terugkerende taken in één tik
-          toevoegen aan Vandaag. */}
-      <div className="mt-2 flex gap-2">
-        {QUICK_ADD_PRESETS.map(preset => {
-          const Icon = preset.icon
-          return (
-            <button
-              key={preset.title}
-              type="button"
-              onClick={() => quickAddPreset(preset)}
-              title={preset.title}
-              aria-label={preset.title}
-              className="flex items-center justify-center gap-1 flex-1 py-1.5 rounded-xl bg-mint-500 text-mint-950 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
-            >
-              <Plus className="h-4 w-4" strokeWidth={2.5} />
-              <Icon className="h-5 w-5" />
-            </button>
-          )
-        })}
+      {/* Eén knop naar de standaardtaken-footer: veelvoorkomende, niet-
+          terugkerende taken (los of als set) in één tik toevoegen aan Vandaag. */}
+      <div className="mt-2">
+        <button
+          type="button"
+          onClick={() => setStandardSheetOpen(true)}
+          className="flex w-full items-center justify-center gap-2 py-2 rounded-xl bg-mint-500 text-mint-950 text-sm font-medium hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
+        >
+          <ListPlus className="h-4 w-4" strokeWidth={2.5} />
+          Standaardtaak toevoegen
+        </button>
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -878,6 +883,85 @@ export default function VandaagPage() {
         </div>
       </BottomSheet>
 
+      {/* Footer met standaardtaken: bovenin losse taken, daaronder sets die in
+          één tik meerdere taken toevoegen. Alles komt in Vandaag terecht. */}
+      <BottomSheet
+        open={standardSheetOpen}
+        onClose={() => setStandardSheetOpen(false)}
+        title="Standaardtaak toevoegen"
+      >
+        <div className="space-y-4">
+          <div>
+            <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Losse taken
+            </h3>
+            <div className="grid grid-cols-2 gap-1.5">
+              {STANDARD_SINGLES.map(preset => {
+                const Icon = preset.icon
+                return (
+                  <button
+                    key={preset.title}
+                    type="button"
+                    onClick={() => addStandardPreset(preset)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium text-left hover:bg-gray-200 transition-colors"
+                  >
+                    <span
+                      className={cn(
+                        'flex items-center justify-center h-6 w-6 rounded-full shrink-0',
+                        CATEGORY_BADGE_CLASS[preset.category]
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    </span>
+                    <span className="truncate">{preset.title}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Sets
+            </h3>
+            <div className="space-y-1.5">
+              {STANDARD_SETS.map(preset => {
+                const Icon = preset.icon
+                return (
+                  <button
+                    key={preset.title}
+                    type="button"
+                    onClick={() => addStandardPreset(preset)}
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-100 text-left hover:bg-gray-200 transition-colors"
+                  >
+                    <span
+                      className={cn(
+                        'flex items-center justify-center h-8 w-8 rounded-full shrink-0',
+                        CATEGORY_BADGE_CLASS[preset.category]
+                      )}
+                    >
+                      <Icon className="h-4 w-4" strokeWidth={2.5} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-gray-700">
+                        {preset.title}
+                        <span className="ml-1.5 text-xs font-normal text-gray-400">
+                          {preset.tasks.length} taken
+                        </span>
+                      </span>
+                      <span className="block truncate text-[11px] text-gray-400">
+                        {preset.tasks.join(' · ')}
+                      </span>
+                    </span>
+                    <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </BottomSheet>
+
       {/* Footer om de categorie van een bestaande taak te wijzigen — tik op
           het categorie-badge op een taak om 'm hier te openen. */}
       <BottomSheet
@@ -886,21 +970,33 @@ export default function VandaagPage() {
         title="Categorie wijzigen"
       >
         <div className="grid grid-cols-2 gap-1.5">
-          {TASK_CATEGORIES.map(c => (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => changeCategory(c.value)}
-              className={cn(
-                'px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left',
-                categoryPickerTask?.category === c.value
-                  ? 'bg-mint-500 text-mint-950'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              )}
-            >
-              {c.label}
-            </button>
-          ))}
+          {TASK_CATEGORIES.map(c => {
+            const Icon = CATEGORY_ICON[c.value]
+            const selected = categoryPickerTask?.category === c.value
+            return (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => changeCategory(c.value)}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left',
+                  selected
+                    ? 'bg-mint-500 text-mint-950'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex items-center justify-center h-6 w-6 rounded-full shrink-0',
+                    CATEGORY_BADGE_CLASS[c.value]
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
+                </span>
+                <span className="truncate">{c.label}</span>
+              </button>
+            )
+          })}
         </div>
       </BottomSheet>
     </div>
