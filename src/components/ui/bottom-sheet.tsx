@@ -24,25 +24,31 @@ export function BottomSheet({ open, onClose, title, children, className }: Botto
 
   // Lock body scroll (position: fixed trick for iOS)
   // Only depends on `open` — onClose is accessed via ref to avoid re-running on every render
+  // Let op: dit effect doet bewust niets zolang de sheet dicht is en keert
+  // dan meteen terug — zónder cleanup. Zou het wél een cleanup registreren,
+  // dan draait die bij het ópenen (React ruimt de vorige run op) en scrolt de
+  // pagina terug naar de opgeslagen positie, die dan nog 0 is: je stond dan
+  // ineens weer bovenaan de takenlijst.
   useEffect(() => {
+    if (!open) return
+
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCloseRef.current()
     }
-    if (open) {
-      document.addEventListener('keydown', handleEscape)
-      scrollYRef.current = window.scrollY
-      document.body.style.position = 'fixed'
-      document.body.style.top = `-${scrollYRef.current}px`
-      document.body.style.left = '0'
-      document.body.style.right = '0'
-      document.body.style.overflow = 'hidden'
-      document.body.dataset.sheetOpen = ''
+    document.addEventListener('keydown', handleEscape)
+    scrollYRef.current = window.scrollY
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${scrollYRef.current}px`
+    document.body.style.left = '0'
+    document.body.style.right = '0'
+    document.body.style.overflow = 'hidden'
+    document.body.dataset.sheetOpen = ''
 
-      // Reset any stale inline transform from previous drag
-      if (sheetRef.current) {
-        sheetRef.current.style.transform = ''
-      }
+    // Reset any stale inline transform from previous drag
+    if (sheetRef.current) {
+      sheetRef.current.style.transform = ''
     }
+
     return () => {
       document.removeEventListener('keydown', handleEscape)
       document.body.style.position = ''

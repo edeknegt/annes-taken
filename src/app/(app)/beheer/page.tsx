@@ -1,17 +1,7 @@
 import Link from 'next/link'
-import { Home, Briefcase, ShoppingBag, Gift, MessageSquare, CircleEllipsis, ChevronRight } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { TASK_CATEGORIES } from '@/lib/tasks'
-import type { TaskCategory } from '@/lib/types'
-
-const ICONS: Record<TaskCategory, typeof Home> = {
-  huishouden: Home,
-  werk: Briefcase,
-  inkopen: ShoppingBag,
-  cadeaus: Gift,
-  berichten: MessageSquare,
-  overig: CircleEllipsis,
-}
+import { TASK_CATEGORIES, CATEGORY_ICON } from '@/lib/tasks'
 
 export default function BeheerIndexPage() {
   return (
@@ -31,7 +21,7 @@ export default function BeheerIndexPage() {
       <div className="pb-24">
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           {TASK_CATEGORIES.map((c, i) => {
-            const Icon = ICONS[c.value]
+            const Icon = CATEGORY_ICON[c.value]
             return (
               <Link
                 key={c.value}

@@ -58,9 +58,20 @@ const STANDARD_SINGLES: StandardTaskPreset[] = [
 const STANDARD_SETS: StandardTaskPreset[] = [
   {
     icon: WashingMachine,
-    title: 'Was doen',
+    title: 'Gekleurde was',
     category: 'huishouden',
-    tasks: ['Was in de wasmachine', 'Was ophangen', 'Was afhalen', 'Was opvouwen'],
+    tasks: [
+      'Gekleurde was in de wasmachine',
+      'Gekleurde was ophangen',
+      'Gekleurde was afhalen',
+      'Gekleurde was opvouwen',
+    ],
+  },
+  {
+    icon: WashingMachine,
+    title: 'Witte was',
+    category: 'huishouden',
+    tasks: ['Witte was in de wasmachine', 'Witte was ophangen', 'Witte was afhalen', 'Witte was opvouwen'],
   },
   {
     icon: BrushCleaning,
@@ -711,9 +722,9 @@ export default function VandaagPage() {
         <button
           type="button"
           onClick={() => setStandardSheetOpen(true)}
-          className="flex w-full items-center justify-center gap-2 py-2 rounded-xl bg-mint-500 text-mint-950 text-sm font-medium hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
+          className="flex w-full items-center justify-center gap-1.5 py-1.5 rounded-xl border border-gray-200 bg-white/70 text-gray-500 text-xs font-medium hover:bg-white hover:text-gray-700 active:scale-95 transition-all touch-manipulation"
         >
-          <ListPlus className="h-4 w-4" strokeWidth={2.5} />
+          <ListPlus className="h-3.5 w-3.5" strokeWidth={2.5} />
           Standaardtaak toevoegen
         </button>
       </div>

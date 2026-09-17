@@ -1,4 +1,4 @@
-import { Home, Briefcase, ShoppingCart, Gift, MessageSquare, Tag, type LucideIcon } from 'lucide-react'
+import { Home, Briefcase, ShoppingCart, Gift, MessageSquare, FileText, BookHeart, Tag, type LucideIcon } from 'lucide-react'
 import type { TaskCategory } from './types'
 
 export const TASK_CATEGORIES: { value: TaskCategory; label: string }[] = [
@@ -7,6 +7,8 @@ export const TASK_CATEGORIES: { value: TaskCategory; label: string }[] = [
   { value: 'inkopen', label: 'Inkopen' },
   { value: 'cadeaus', label: 'Cadeaus & Kaarten' },
   { value: 'berichten', label: 'Berichten' },
+  { value: 'administratie', label: 'Administratie' },
+  { value: 'herinneringen', label: 'Herinneringen' },
   { value: 'overig', label: 'Overig' },
 ]
 
@@ -27,7 +29,7 @@ export const FILTER_CATEGORIES = TASK_CATEGORIES.filter(
 // Kleurtje voor de categorie-badge op een taak (Vandaag/Later-scherm) en de
 // filterchips — puur decoratief, geen andere betekenis. Pastel (lichte
 // achtergrond), maar op maximaal uit elkaar liggende kleurfamilies (groen/
-// blauw/oranje/rood/geel/grijs), met stevig donkere tekstkleur (900 i.p.v.
+// blauw/oranje/rood/geel/paars/roze/grijs), met stevig donkere tekstkleur (900 i.p.v.
 // 700) zodat het onderscheid vooral via helder/donker-contrast loopt — dat
 // blijft ook bij kleurenblindheid overeind, puur op tint lukt dat niet.
 export const CATEGORY_BADGE_CLASS: Record<TaskCategory, string> = {
@@ -36,6 +38,8 @@ export const CATEGORY_BADGE_CLASS: Record<TaskCategory, string> = {
   inkopen: 'bg-orange-200 text-orange-900',
   cadeaus: 'bg-red-200 text-red-900',
   berichten: 'bg-yellow-200 text-yellow-900',
+  administratie: 'bg-purple-200 text-purple-900',
+  herinneringen: 'bg-pink-200 text-pink-900',
   overig: 'bg-gray-200 text-gray-700',
 }
 
@@ -48,5 +52,7 @@ export const CATEGORY_ICON: Record<TaskCategory, LucideIcon> = {
   inkopen: ShoppingCart,
   cadeaus: Gift,
   berichten: MessageSquare,
+  administratie: FileText,
+  herinneringen: BookHeart,
   overig: Tag,
 }

@@ -2,7 +2,15 @@
 // Tasks
 // ---------------------------------------------------------------------------
 
-export type TaskCategory = 'huishouden' | 'werk' | 'inkopen' | 'cadeaus' | 'overig' | 'berichten'
+export type TaskCategory =
+  | 'huishouden'
+  | 'werk'
+  | 'inkopen'
+  | 'cadeaus'
+  | 'berichten'
+  | 'administratie'
+  | 'herinneringen'
+  | 'overig'
 
 // Welke sectie op de Taken-pagina: Vandaag, Snel of Later.
 export type TaskList = 'today' | 'quick' | 'later'
