@@ -27,7 +27,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { isRuleDue, nextDueAt, formatDayMonth } from '@/lib/recurring'
 import { HARDCODED_GIFT_TASKS, isHardcodedDue } from '@/lib/gift-holidays'
-import { TASK_CATEGORIES, FILTER_CATEGORIES, CATEGORY_BADGE_CLASS, CATEGORY_ICON, taskCategoryLabel } from '@/lib/tasks'
+import { TASK_CATEGORIES, CATEGORY_BADGE_CLASS, CATEGORY_ICON, taskCategoryLabel } from '@/lib/tasks'
 import { setTodayCount } from '@/lib/task-counts'
 import type { Task, TaskCategory, TaskList, TaskRule } from '@/lib/types'
 
@@ -699,7 +699,7 @@ export default function VandaagPage() {
               de taken zelf. Een actief filter is voluit gekleurd met een
               mint-ring eromheen, een inactief filter staat gedempt — zo blijft
               zichtbaar welke kleur bij welke categorie hoort. */}
-          {FILTER_CATEGORIES.map(c => {
+          {TASK_CATEGORIES.map(c => {
             const Icon = CATEGORY_ICON[c.value]
             const selected = selectedCategories.includes(c.value)
             return (

@@ -19,13 +19,6 @@ export function taskCategoryLabel(category: TaskCategory): string {
 // Alle categorieën ondersteunen terugkerende taakregels.
 export const TASK_RULE_CATEGORIES = TASK_CATEGORIES
 
-// Beperktere set voor de filterchips boven Vandaag/Later — Cadeaus & Kaarten
-// en Overig blijven wel bestaan als categorie (badge, Beheer), maar zijn
-// geen apart filterknopje meer.
-export const FILTER_CATEGORIES = TASK_CATEGORIES.filter(
-  c => c.value === 'huishouden' || c.value === 'werk' || c.value === 'inkopen' || c.value === 'berichten'
-)
-
 // Kleurtje voor de categorie-badge op een taak (Vandaag/Later-scherm) en de
 // filterchips — puur decoratief, geen andere betekenis. Pastel (lichte
 // achtergrond), maar op maximaal uit elkaar liggende kleurfamilies (groen/
