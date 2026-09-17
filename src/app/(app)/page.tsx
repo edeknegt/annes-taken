@@ -294,7 +294,10 @@ export default function VandaagPage() {
   // alleen de naam is in te vullen.
   const [addSheetOpen, setAddSheetOpen] = useState(false)
   // Footer met standaardtaken (losse taken en sets) om snel toe te voegen.
+  // addedPresets onthoudt wat je deze keer al hebt toegevoegd — puur voor het
+  // vinkje op de knop, dus leeg bij elke nieuwe keer openen.
   const [standardSheetOpen, setStandardSheetOpen] = useState(false)
+  const [addedPresets, setAddedPresets] = useState<string[]>([])
   const [newTaskName, setNewTaskName] = useState('')
   const [newTaskCategory, setNewTaskCategory] = useState<TaskCategory>(DEFAULT_CATEGORY)
   const [newTaskList, setNewTaskList] = useState<TaskList>('today')
@@ -594,8 +597,10 @@ export default function VandaagPage() {
 
   // Standaardtaak: voegt in één keer alle taken uit een preset toe aan Vandaag,
   // alsof ze los, handmatig zijn toegevoegd.
+  // De footer blijft open — meestal voeg je er een paar achter elkaar toe. In
+  // plaats daarvan krijgt de knop een vinkje, zodat je ziet wat er al staat.
   const addStandardPreset = async (preset: StandardTaskPreset) => {
-    setStandardSheetOpen(false)
+    setAddedPresets(prev => (prev.includes(preset.title) ? prev : [...prev, preset.title]))
     const bucket = tasks.filter(t => t.list === 'today')
     let nextSort = bucket.length > 0 ? Math.max(...bucket.map(t => t.manual_sort_order)) + 1 : 0
     const rows = preset.tasks.map(name => ({
@@ -767,7 +772,7 @@ export default function VandaagPage() {
               </h2>
               <button
                 type="button"
-                onClick={() => setStandardSheetOpen(true)}
+                onClick={() => { setAddedPresets([]); setStandardSheetOpen(true) }}
                 className="mb-1 flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white/70 text-gray-500 text-xs font-medium hover:bg-white hover:text-gray-700 active:scale-95 transition-all touch-manipulation"
               >
                 <ListPlus className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -937,7 +942,7 @@ export default function VandaagPage() {
           die in één tik meerdere taken toevoegen. Alles komt in Vandaag. */}
       <BottomSheet
         open={standardSheetOpen}
-        onClose={() => setStandardSheetOpen(false)}
+        onClose={() => { setStandardSheetOpen(false); setAddedPresets([]) }}
         title="Standaardtaak toevoegen"
       >
         <div className="space-y-4">
@@ -947,12 +952,17 @@ export default function VandaagPage() {
                 {group.title}
               </h3>
               <div className="space-y-1.5">
-                {group.presets.map(preset => (
+                {group.presets.map(preset => {
+                  const added = addedPresets.includes(preset.title)
+                  return (
                   <button
                     key={preset.title}
                     type="button"
                     onClick={() => addStandardPreset(preset)}
-                    className="flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-100 text-left hover:bg-gray-200 transition-colors"
+                    className={cn(
+                      'flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors',
+                      added ? 'bg-mint-100 hover:bg-mint-200' : 'bg-gray-100 hover:bg-gray-200'
+                    )}
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium text-gray-700">
@@ -969,9 +979,14 @@ export default function VandaagPage() {
                         </span>
                       )}
                     </span>
-                    <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
+                    {added ? (
+                      <Check className="h-4 w-4 text-mint-700 shrink-0" strokeWidth={3} />
+                    ) : (
+                      <Plus className="h-4 w-4 text-gray-400 shrink-0" strokeWidth={2.5} />
+                    )}
                   </button>
-                ))}
+                  )
+                })}
               </div>
             </div>
           ))}
