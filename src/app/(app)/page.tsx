@@ -58,6 +58,7 @@ const STANDARD_SINGLES: StandardTaskPreset[] = [
   { title: 'Bovenverdieping zuigen', category: 'huishouden', tasks: ['Bovenverdieping zuigen'] },
   { title: 'Benedenverdieping stoffen', category: 'huishouden', tasks: ['Benedenverdieping stoffen'] },
   { title: 'Bovenverdieping stoffen', category: 'huishouden', tasks: ['Bovenverdieping stoffen'] },
+  { title: 'Benedenverdieping dweilen', category: 'huishouden', tasks: ['Benedenverdieping dweilen'] },
   { title: 'WC beneden schoonmaken', category: 'huishouden', tasks: ['WC beneden schoonmaken'] },
   { title: 'WC boven schoonmaken', category: 'huishouden', tasks: ['WC boven schoonmaken'] },
   { title: 'Badkamer schoonmaken', category: 'huishouden', tasks: ['Badkamer schoonmaken'] },
@@ -78,11 +79,6 @@ const STANDARD_SETS: StandardTaskPreset[] = [
     title: 'Witte was',
     category: 'huishouden',
     tasks: ['Witte was in de wasmachine', 'Witte was ophangen', 'Witte was afhalen', 'Witte was opvouwen'],
-  },
-  {
-    title: 'Huis schoonmaken',
-    category: 'huishouden',
-    tasks: ['Stofzuigen', 'Dweilen'],
   },
 ]
 
