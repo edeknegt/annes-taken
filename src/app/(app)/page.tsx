@@ -694,7 +694,9 @@ export default function VandaagPage() {
           </div>
         </div>
 
-        <div className="max-w-2xl mx-auto mt-3 flex gap-1.5 overflow-x-auto pb-1 -mb-1">
+        {/* py-1 / -my-1: horizontaal scrollen knipt verticaal af, en zonder
+            die ruimte valt de ring om een actief filter weg. */}
+        <div className="max-w-2xl mx-auto mt-3 flex gap-1.5 overflow-x-auto py-1 -my-1">
           {/* Filter op categorie: hetzelfde icoon in hetzelfde kleurtje als op
               de taken zelf. Een actief filter is voluit gekleurd met een
               mint-ring eromheen, een inactief filter staat gedempt — zo blijft
