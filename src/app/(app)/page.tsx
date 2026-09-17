@@ -313,6 +313,15 @@ export default function VandaagPage() {
   // nieuwe keer openen.
   const [standardSheetOpen, setStandardSheetOpen] = useState(false)
   const [addedPresets, setAddedPresets] = useState<Record<string, string[]>>({})
+  // Spiegel in een ref: tik je twee keer snel achter elkaar, dan moet de tweede
+  // tik de stand van de eerste al zien, ook al is die render nog niet gedaan.
+  const addedPresetsRef = useRef<Record<string, string[]>>({})
+  const setAddedPresetsNow = (
+    update: (prev: Record<string, string[]>) => Record<string, string[]>
+  ) => {
+    addedPresetsRef.current = update(addedPresetsRef.current)
+    setAddedPresets(addedPresetsRef.current)
+  }
   const [newTaskName, setNewTaskName] = useState('')
   const [newTaskCategory, setNewTaskCategory] = useState<TaskCategory>(DEFAULT_CATEGORY)
   const [newTaskList, setNewTaskList] = useState<TaskList>('today')
@@ -616,18 +625,24 @@ export default function VandaagPage() {
   // achter elkaar toe, en zo kun je een misklik meteen herstellen.
   const toggleStandardPreset = async (preset: StandardTaskPreset) => {
     const key = presetKey(preset)
-    const addedIds = addedPresets[key]
+    const addedIds = addedPresetsRef.current[key]
 
     if (addedIds) {
-      setAddedPresets(prev => {
+      setAddedPresetsNow(prev => {
         const next = { ...prev }
         delete next[key]
         return next
       })
-      setTasks(prev => prev.filter(t => !addedIds.includes(t.id)))
-      await supabase.from('tasks').delete().in('id', addedIds)
+      if (addedIds.length > 0) {
+        setTasks(prev => prev.filter(t => !addedIds.includes(t.id)))
+        await supabase.from('tasks').delete().in('id', addedIds)
+      }
       return
     }
+
+    // Meteen als toegevoegd tonen (nog zonder id's) — anders zie je pas iets
+    // gebeuren als de database geantwoord heeft, en dat voelt traag.
+    setAddedPresetsNow(prev => ({ ...prev, [key]: [] }))
 
     const bucket = tasks.filter(t => t.list === 'today')
     let nextSort = bucket.length > 0 ? Math.max(...bucket.map(t => t.manual_sort_order)) + 1 : 0
@@ -639,11 +654,24 @@ export default function VandaagPage() {
     }))
 
     const { data: inserted } = await supabase.from('tasks').insert(rows).select('*')
-    if (inserted) {
-      const insertedTasks = inserted as Task[]
-      setTasks(prev => [...prev, ...insertedTasks])
-      setAddedPresets(prev => ({ ...prev, [key]: insertedTasks.map(t => t.id) }))
+    if (!inserted) {
+      setAddedPresetsNow(prev => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+      return
     }
+
+    const insertedTasks = inserted as Task[]
+    if (!(key in addedPresetsRef.current)) {
+      // Intussen weer uitgezet: de net aangemaakte taken horen dan niet in de
+      // lijst thuis.
+      await supabase.from('tasks').delete().in('id', insertedTasks.map(t => t.id))
+      return
+    }
+    setTasks(prev => [...prev, ...insertedTasks])
+    setAddedPresetsNow(prev => ({ ...prev, [key]: insertedTasks.map(t => t.id) }))
   }
 
   // Slepen tussen (en binnen) Vandaag/Snel/Later. Werkt op de huidige,
@@ -804,7 +832,7 @@ export default function VandaagPage() {
               </h2>
               <button
                 type="button"
-                onClick={() => { setAddedPresets({}); setStandardSheetOpen(true) }}
+                onClick={() => { setAddedPresetsNow(() => ({})); setStandardSheetOpen(true) }}
                 className="mb-1 flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 bg-white/70 text-gray-500 text-xs font-medium hover:bg-white hover:text-gray-700 active:scale-95 transition-all touch-manipulation"
               >
                 <ListPlus className="h-3.5 w-3.5" strokeWidth={2.5} />
@@ -974,7 +1002,7 @@ export default function VandaagPage() {
           die in één tik meerdere taken toevoegen. Alles komt in Vandaag. */}
       <BottomSheet
         open={standardSheetOpen}
-        onClose={() => { setStandardSheetOpen(false); setAddedPresets({}) }}
+        onClose={() => { setStandardSheetOpen(false); setAddedPresetsNow(() => ({})) }}
         title="Standaardtaak toevoegen"
       >
         <div className="space-y-4">
@@ -1004,7 +1032,7 @@ export default function VandaagPage() {
                         type="button"
                         onClick={() => toggleStandardPreset(preset)}
                         className={cn(
-                          'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg text-sm font-medium text-gray-700 transition-colors',
+                          'flex items-center justify-center gap-1 px-2 py-2.5 rounded-lg text-sm font-medium text-gray-700 transition-colors touch-manipulation active:scale-[0.98]',
                           added ? 'bg-mint-100 hover:bg-mint-200' : 'bg-gray-100 hover:bg-gray-200'
                         )}
                       >
@@ -1019,7 +1047,7 @@ export default function VandaagPage() {
                     type="button"
                     onClick={() => toggleStandardPreset(preset)}
                     className={cn(
-                      'flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors',
+                      'flex w-full items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors touch-manipulation active:scale-[0.99]',
                       added ? 'bg-mint-100 hover:bg-mint-200' : 'bg-gray-100 hover:bg-gray-200'
                     )}
                   >
