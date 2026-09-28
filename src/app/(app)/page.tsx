@@ -85,6 +85,16 @@ const STANDARD_GROUPS: StandardTaskGroup[] = [
         category: 'huishouden',
         tasks: ['Witte was in de wasmachine', 'Witte was ophangen', 'Witte was afhalen', 'Witte was opvouwen'],
       },
+      {
+        title: 'Handdoekenwas',
+        category: 'huishouden',
+        tasks: [
+          'Handdoekenwas in de wasmachine',
+          'Handdoekenwas ophangen',
+          'Handdoekenwas afhalen',
+          'Handdoekenwas opvouwen',
+        ],
+      },
     ],
   },
   {
