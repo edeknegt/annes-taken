@@ -828,7 +828,7 @@ export default function VandaagPage() {
       <div className="h-32 sm:h-36 lg:h-40" aria-hidden />
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <section className="mt-4 pb-24 space-y-10">
+        <section className="mt-4 pb-24 space-y-12">
           <div>
             {/* De standaardtaken-knop staat bewust naast deze kop: wat je daar
                 kiest, komt in Vandaag terecht. Onderlangs uitgelijnd, zodat het
@@ -878,7 +878,7 @@ export default function VandaagPage() {
               <button
                 type="button"
                 onClick={() => openAddSheet('today')}
-                className="absolute -bottom-5 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-mint-500 text-mint-950 shadow-md shadow-mint-900/25 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
+                className="absolute -bottom-7 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-mint-500 text-mint-950 shadow-md shadow-mint-900/25 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
                 aria-label="Nieuwe taak in Vandaag"
                 title="Nieuwe taak in Vandaag"
               >
@@ -917,7 +917,7 @@ export default function VandaagPage() {
               <button
                 type="button"
                 onClick={() => openAddSheet('quick')}
-                className="absolute -bottom-5 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-mint-500 text-mint-950 shadow-md shadow-mint-900/25 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
+                className="absolute -bottom-7 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-mint-500 text-mint-950 shadow-md shadow-mint-900/25 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
                 aria-label="Nieuwe taak in Binnenkort"
                 title="Nieuwe taak in Binnenkort"
               >

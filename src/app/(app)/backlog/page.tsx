@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Plus, X, CalendarArrowUp } from 'lucide-react'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,10 @@ import type { Task, TaskCategory, TaskRule } from '@/lib/types'
 //    Taken-pagina er vanzelf een taak van in Vandaag, en de dag ervoor staat
 //    hij alvast in Binnenkort. Dit is de enige plek waar zulke eenmalige taken
 //    worden gemaakt; Beheer gaat alleen over regels die zich blijven herhalen.
+//
+// Beide soorten delen dezelfde rij-opmaak: links een actie (naar Binnenkort,
+// of de datum), dan de naam die je ter plekke kunt wijzigen, dan het
+// categorie-bolletje waarmee je de categorie omzet, en het kruisje.
 
 const DEFAULT_CATEGORY: TaskCategory = 'huishouden'
 
@@ -27,8 +32,22 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// "vrijdag 2 oktober" — zonder jaartal, tenzij het een ander jaar is dan nu.
+// "22 okt" — kort genoeg voor de smalle kolom links in de rij. Alleen bij een
+// ander jaar dan nu komt het jaartal erbij.
+function formatShortDate(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(`${iso}T00:00:00`)
+  const sameYear = d.getFullYear() === new Date().getFullYear()
+  return d.toLocaleDateString('nl-NL', {
+    day: 'numeric',
+    month: 'short',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  })
+}
+
+// "vrijdag 2 oktober" — voluit, voor de bevestiging bij verwijderen.
 function formatLongDate(iso: string): string {
+  if (!iso) return ''
   const d = new Date(`${iso}T00:00:00`)
   const sameYear = d.getFullYear() === new Date().getFullYear()
   return d.toLocaleDateString('nl-NL', {
@@ -40,55 +59,145 @@ function formatLongDate(iso: string): string {
 }
 
 interface PlannedForm {
-  id: string | null
   name: string
   date: string
   category: TaskCategory
 }
 
-function emptyPlannedForm(): PlannedForm {
-  return { id: null, name: '', date: todayIso(), category: DEFAULT_CATEGORY }
+// ─────────────────────────────────────────────────────────────────────────────
+// Backlog-rij — gedeeld door de ongeplande en de geplande taken.
+// ─────────────────────────────────────────────────────────────────────────────
+interface BacklogRowProps {
+  first: boolean
+  leading: React.ReactNode
+  name: string
+  category: TaskCategory
+  onRename: (name: string) => void
+  onChangeCategory: () => void
+  onDelete: () => void
+}
+
+function BacklogRow({
+  first,
+  leading,
+  name,
+  category,
+  onRename,
+  onChangeCategory,
+  onDelete,
+}: BacklogRowProps) {
+  const CategoryIcon = CATEGORY_ICON[category]
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const startEdit = () => {
+    flushSync(() => {
+      setDraft(name)
+      setEditing(true)
+    })
+    inputRef.current?.focus()
+  }
+
+  const commit = () => {
+    setEditing(false)
+    const next = draft.trim()
+    if (next && next !== name) onRename(next)
+  }
+
+  return (
+    <div className={cn('flex items-center gap-2 pl-1 pr-1', !first && 'border-t border-gray-100')}>
+      <span className="shrink-0 w-12 flex items-center justify-center">{leading}</span>
+
+      {editing ? (
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              commit()
+            } else if (e.key === 'Escape') {
+              e.preventDefault()
+              setEditing(false)
+              setDraft('')
+            }
+          }}
+          onBlur={commit}
+          className="flex-1 min-w-0 text-[15px] py-2.5 bg-transparent outline-none text-gray-900"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={startEdit}
+          className="flex-1 min-w-0 text-left py-2.5 cursor-text"
+        >
+          <span className="block truncate text-[15px] text-gray-900">{name}</span>
+        </button>
+      )}
+
+      <button
+        type="button"
+        onClick={onChangeCategory}
+        className={cn(
+          'flex items-center justify-center h-6 w-6 rounded-full shrink-0',
+          CATEGORY_BADGE_CLASS[category]
+        )}
+        aria-label={`Categorie: ${taskCategoryLabel(category)} — wijzigen`}
+        title={`${taskCategoryLabel(category)} — categorie wijzigen`}
+      >
+        <CategoryIcon className="h-3.5 w-3.5" strokeWidth={2.5} />
+      </button>
+
+      <button
+        type="button"
+        onClick={onDelete}
+        className="flex items-center justify-center p-3 text-gray-300 hover:text-red-500 shrink-0"
+        aria-label="Verwijderen"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  )
 }
 
 // Categoriekiezer — zelfde raster als bij het wijzigen van een categorie op de
-// Taken-pagina, hier gedeeld door beide footers.
+// Taken-pagina, hier gedeeld door de footers.
 function CategoryPicker({
   value,
   onChange,
 }: {
-  value: TaskCategory
+  value: TaskCategory | null
   onChange: (category: TaskCategory) => void
 }) {
   return (
-    <div>
-      <span className="block text-sm font-medium text-gray-700 mb-1">Categorie</span>
-      <div className="grid grid-cols-2 gap-1.5">
-        {TASK_CATEGORIES.map(c => {
-          const Icon = CATEGORY_ICON[c.value]
-          const selected = value === c.value
-          return (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => onChange(c.value)}
+    <div className="grid grid-cols-2 gap-1.5">
+      {TASK_CATEGORIES.map(c => {
+        const Icon = CATEGORY_ICON[c.value]
+        const selected = value === c.value
+        return (
+          <button
+            key={c.value}
+            type="button"
+            onClick={() => onChange(c.value)}
+            className={cn(
+              'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left',
+              selected ? 'bg-mint-500 text-mint-950' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            )}
+          >
+            <span
               className={cn(
-                'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left',
-                selected ? 'bg-mint-500 text-mint-950' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                'flex items-center justify-center h-6 w-6 rounded-full shrink-0',
+                CATEGORY_BADGE_CLASS[c.value]
               )}
             >
-              <span
-                className={cn(
-                  'flex items-center justify-center h-6 w-6 rounded-full shrink-0',
-                  CATEGORY_BADGE_CLASS[c.value]
-                )}
-              >
-                <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
-              </span>
-              <span className="truncate">{c.label}</span>
-            </button>
-          )
-        })}
-      </div>
+              <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
+            </span>
+            <span className="truncate">{c.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -100,7 +209,7 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="absolute -bottom-5 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-mint-500 text-mint-950 shadow-md shadow-mint-900/25 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
+      className="absolute -bottom-7 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-mint-500 text-mint-950 shadow-md shadow-mint-900/25 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
       aria-label={label}
       title={label}
     >
@@ -108,6 +217,11 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
     </button>
   )
 }
+
+// Welke rij de categoriekiezer heeft geopend: een losse taak of een regel.
+type CategoryTarget =
+  | { kind: 'task'; id: string; category: TaskCategory }
+  | { kind: 'rule'; id: string; category: TaskCategory }
 
 export default function BacklogPage() {
   const supabase = createClient()
@@ -121,10 +235,20 @@ export default function BacklogPage() {
   const [newTaskCategory, setNewTaskCategory] = useState<TaskCategory>(DEFAULT_CATEGORY)
   const [addingTask, setAddingTask] = useState(false)
 
-  // Geplande taak toevoegen of wijzigen
+  // Geplande taak toevoegen
   const [plannedSheetOpen, setPlannedSheetOpen] = useState(false)
-  const [plannedForm, setPlannedForm] = useState<PlannedForm>(emptyPlannedForm)
+  const [plannedForm, setPlannedForm] = useState<PlannedForm>({
+    name: '',
+    date: todayIso(),
+    category: DEFAULT_CATEGORY,
+  })
   const [savingPlanned, setSavingPlanned] = useState(false)
+
+  // Datum van een bestaande geplande taak wijzigen
+  const [dateTarget, setDateTarget] = useState<TaskRule | null>(null)
+  const [dateDraft, setDateDraft] = useState('')
+
+  const [categoryTarget, setCategoryTarget] = useState<CategoryTarget | null>(null)
   const [deleteRuleConfirm, setDeleteRuleConfirm] = useState<TaskRule | null>(null)
 
   const fetchData = useCallback(async () => {
@@ -197,6 +321,11 @@ export default function BacklogPage() {
       .eq('id', task.id)
   }
 
+  const renameTask = async (taskId: string, name: string) => {
+    setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, name } : t)))
+    await supabase.from('tasks').update({ name }).eq('id', taskId)
+  }
+
   const deleteTask = async (taskId: string) => {
     setTasks(prev => prev.filter(t => t.id !== taskId))
     await supabase.from('tasks').delete().eq('id', taskId)
@@ -205,18 +334,8 @@ export default function BacklogPage() {
   // ---------------------------------------------------------------------------
   // Geplande taken
   // ---------------------------------------------------------------------------
-  const openNewPlanned = () => {
-    setPlannedForm(emptyPlannedForm())
-    setPlannedSheetOpen(true)
-  }
-
-  const openEditPlanned = (rule: TaskRule) => {
-    setPlannedForm({
-      id: rule.id,
-      name: rule.name,
-      date: (rule.first_due_at ?? todayIso()).slice(0, 10),
-      category: rule.category,
-    })
+  const openPlannedSheet = () => {
+    setPlannedForm({ name: '', date: todayIso(), category: DEFAULT_CATEGORY })
     setPlannedSheetOpen(true)
   }
 
@@ -225,7 +344,7 @@ export default function BacklogPage() {
     if (!name || !plannedForm.date) return
     setSavingPlanned(true)
 
-    const payload = {
+    await supabase.from('task_rules').insert({
       category: plannedForm.category,
       name,
       description: null,
@@ -241,17 +360,33 @@ export default function BacklogPage() {
       gift: true,
       card: true,
       active: true,
-    }
-
-    if (plannedForm.id) {
-      await supabase.from('task_rules').update(payload).eq('id', plannedForm.id)
-    } else {
-      await supabase.from('task_rules').insert(payload)
-    }
+    })
 
     setSavingPlanned(false)
     setPlannedSheetOpen(false)
     fetchData()
+  }
+
+  const renameRule = async (ruleId: string, name: string) => {
+    setRules(prev => prev.map(r => (r.id === ruleId ? { ...r, name } : r)))
+    await supabase.from('task_rules').update({ name }).eq('id', ruleId)
+  }
+
+  const openDateSheet = (rule: TaskRule) => {
+    setDateDraft((rule.first_due_at ?? todayIso()).slice(0, 10))
+    setDateTarget(rule)
+  }
+
+  const saveDate = async () => {
+    if (!dateTarget || !dateDraft) return
+    const ruleId = dateTarget.id
+    setRules(prev =>
+      [...prev.map(r => (r.id === ruleId ? { ...r, first_due_at: dateDraft } : r))].sort((a, b) =>
+        (a.first_due_at ?? '').localeCompare(b.first_due_at ?? '')
+      )
+    )
+    setDateTarget(null)
+    await supabase.from('task_rules').update({ first_due_at: dateDraft }).eq('id', ruleId)
   }
 
   const removePlanned = async () => {
@@ -259,6 +394,23 @@ export default function BacklogPage() {
     await supabase.from('task_rules').delete().eq('id', deleteRuleConfirm.id)
     setRules(prev => prev.filter(r => r.id !== deleteRuleConfirm.id))
     setDeleteRuleConfirm(null)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Categorie wijzigen — werkt voor beide soorten rijen.
+  // ---------------------------------------------------------------------------
+  const changeCategory = async (category: TaskCategory) => {
+    if (!categoryTarget) return
+    const { kind, id } = categoryTarget
+    setCategoryTarget(null)
+
+    if (kind === 'task') {
+      setTasks(prev => prev.map(t => (t.id === id ? { ...t, category } : t)))
+      await supabase.from('tasks').update({ category }).eq('id', id)
+    } else {
+      setRules(prev => prev.map(r => (r.id === id ? { ...r, category } : r)))
+      await supabase.from('task_rules').update({ category }).eq('id', id)
+    }
   }
 
   const today = todayIso()
@@ -278,7 +430,7 @@ export default function BacklogPage() {
       {loading ? (
         <p className="text-sm text-gray-400">Laden&hellip;</p>
       ) : (
-        <section className="pb-24 space-y-10">
+        <section className="pb-24 space-y-12">
           <div>
             <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
               Ongepland
@@ -290,51 +442,30 @@ export default function BacklogPage() {
                     Niets op de plank.
                   </p>
                 ) : (
-                  tasks.map((task, i) => {
-                    const Icon = CATEGORY_ICON[task.category]
-                    return (
-                      <div
-                        key={task.id}
-                        className={cn(
-                          'flex items-center gap-2 pl-3 pr-1',
-                          i > 0 && 'border-t border-gray-100'
-                        )}
-                      >
+                  tasks.map((task, i) => (
+                    <BacklogRow
+                      key={task.id}
+                      first={i === 0}
+                      name={task.name}
+                      category={task.category}
+                      onRename={(name) => renameTask(task.id, name)}
+                      onChangeCategory={() =>
+                        setCategoryTarget({ kind: 'task', id: task.id, category: task.category })
+                      }
+                      onDelete={() => deleteTask(task.id)}
+                      leading={
                         <button
                           type="button"
                           onClick={() => moveToQuick(task)}
-                          className="flex items-center justify-center p-2.5 -ml-1 rounded-full text-gray-400 hover:text-mint-700 hover:bg-mint-50 shrink-0 touch-manipulation"
+                          className="flex items-center justify-center p-2.5 rounded-full text-gray-400 hover:text-mint-700 hover:bg-mint-50 touch-manipulation"
                           aria-label={`${task.name} naar Binnenkort`}
                           title="Naar Binnenkort"
                         >
                           <CalendarArrowUp className="h-[18px] w-[18px]" strokeWidth={2.25} />
                         </button>
-
-                        <span className="flex-1 min-w-0 py-2.5 truncate text-[15px] text-gray-900">
-                          {task.name}
-                        </span>
-
-                        <span
-                          className={cn(
-                            'flex items-center justify-center h-6 w-6 rounded-full shrink-0',
-                            CATEGORY_BADGE_CLASS[task.category]
-                          )}
-                          title={taskCategoryLabel(task.category)}
-                        >
-                          <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => deleteTask(task.id)}
-                          className="flex items-center justify-center p-3 text-gray-300 hover:text-red-500 shrink-0"
-                          aria-label="Verwijderen"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )
-                  })
+                      }
+                    />
+                  ))
                 )}
               </div>
               <AddButton label="Nieuwe taak in de backlog" onClick={openTaskSheet} />
@@ -353,57 +484,39 @@ export default function BacklogPage() {
                   </p>
                 ) : (
                   rules.map((rule, i) => {
-                    const Icon = CATEGORY_ICON[rule.category]
                     const date = (rule.first_due_at ?? '').slice(0, 10)
-                    const overdue = date < today
+                    const overdue = date !== '' && date < today
                     return (
-                      <div
+                      <BacklogRow
                         key={rule.id}
-                        className={cn(
-                          'flex items-center gap-2 pl-3 pr-1',
-                          i > 0 && 'border-t border-gray-100'
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => openEditPlanned(rule)}
-                          className="flex-1 min-w-0 py-2.5 text-left"
-                        >
-                          <span className="block truncate text-[15px] text-gray-900">{rule.name}</span>
-                          <span
+                        first={i === 0}
+                        name={rule.name}
+                        category={rule.category}
+                        onRename={(name) => renameRule(rule.id, name)}
+                        onChangeCategory={() =>
+                          setCategoryTarget({ kind: 'rule', id: rule.id, category: rule.category })
+                        }
+                        onDelete={() => setDeleteRuleConfirm(rule)}
+                        leading={
+                          <button
+                            type="button"
+                            onClick={() => openDateSheet(rule)}
                             className={cn(
-                              'block text-[11px] mt-0.5',
-                              overdue ? 'text-red-500 font-medium' : 'text-gray-500'
+                              'px-1 py-2.5 text-[11px] font-medium leading-tight text-center rounded hover:bg-gray-100 touch-manipulation',
+                              overdue ? 'text-red-500' : 'text-gray-500'
                             )}
+                            aria-label={`Datum: ${formatLongDate(date)} — wijzigen`}
+                            title={`${formatLongDate(date)} — datum wijzigen`}
                           >
-                            {formatLongDate(date)}
-                          </span>
-                        </button>
-
-                        <span
-                          className={cn(
-                            'flex items-center justify-center h-6 w-6 rounded-full shrink-0',
-                            CATEGORY_BADGE_CLASS[rule.category]
-                          )}
-                          title={taskCategoryLabel(rule.category)}
-                        >
-                          <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => setDeleteRuleConfirm(rule)}
-                          className="flex items-center justify-center p-3 text-gray-300 hover:text-red-500 shrink-0"
-                          aria-label="Verwijderen"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                            {formatShortDate(date)}
+                          </button>
+                        }
+                      />
                     )
                   })
                 )}
               </div>
-              <AddButton label="Taak inplannen" onClick={openNewPlanned} />
+              <AddButton label="Taak inplannen" onClick={openPlannedSheet} />
             </div>
           </div>
         </section>
@@ -420,7 +533,10 @@ export default function BacklogPage() {
             placeholder="Bijv. Moestuin opruimen"
           />
 
-          <CategoryPicker value={newTaskCategory} onChange={setNewTaskCategory} />
+          <div>
+            <span className="block text-sm font-medium text-gray-700 mb-1">Categorie</span>
+            <CategoryPicker value={newTaskCategory} onChange={setNewTaskCategory} />
+          </div>
 
           <div className="flex justify-end gap-3 pt-1">
             <Button variant="outline" onClick={() => setTaskSheetOpen(false)}>
@@ -433,11 +549,12 @@ export default function BacklogPage() {
         </div>
       </BottomSheet>
 
-      {/* Geplande taak: naam, dag en categorie — meer is er niet nodig. */}
+      {/* Nieuwe geplande taak. Een bestaande wijzig je in de rij zelf: naam en
+          categorie direct, de datum via de footer hieronder. */}
       <BottomSheet
         open={plannedSheetOpen}
         onClose={() => setPlannedSheetOpen(false)}
-        title={plannedForm.id ? 'Geplande taak' : 'Taak inplannen'}
+        title="Taak inplannen"
       >
         <div className="space-y-4">
           <Input
@@ -462,10 +579,13 @@ export default function BacklogPage() {
             </div>
           </div>
 
-          <CategoryPicker
-            value={plannedForm.category}
-            onChange={(category) => setPlannedForm(prev => ({ ...prev, category }))}
-          />
+          <div>
+            <span className="block text-sm font-medium text-gray-700 mb-1">Categorie</span>
+            <CategoryPicker
+              value={plannedForm.category}
+              onChange={(category) => setPlannedForm(prev => ({ ...prev, category }))}
+            />
+          </div>
 
           <div className="flex justify-end gap-3 pt-1">
             <Button variant="outline" onClick={() => setPlannedSheetOpen(false)}>
@@ -480,6 +600,43 @@ export default function BacklogPage() {
             </Button>
           </div>
         </div>
+      </BottomSheet>
+
+      <BottomSheet open={dateTarget !== null} onClose={() => setDateTarget(null)} title="Datum wijzigen">
+        {dateTarget && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {dateTarget.name}
+              </label>
+              <div className="rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-mint-200 focus-within:border-mint-500">
+                <input
+                  type="date"
+                  value={dateDraft}
+                  onChange={(e) => setDateDraft(e.target.value)}
+                  className="block w-full min-w-0 px-3 py-2 text-sm bg-transparent outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setDateTarget(null)}>
+                Annuleren
+              </Button>
+              <Button onClick={saveDate} disabled={!dateDraft}>
+                Opslaan
+              </Button>
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
+      <BottomSheet
+        open={categoryTarget !== null}
+        onClose={() => setCategoryTarget(null)}
+        title="Categorie wijzigen"
+      >
+        <CategoryPicker value={categoryTarget?.category ?? null} onChange={changeCategory} />
       </BottomSheet>
 
       <BottomSheet
