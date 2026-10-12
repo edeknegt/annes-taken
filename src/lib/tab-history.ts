@@ -1,6 +1,6 @@
 'use client'
 
-export type TabKey = 'vandaag' | 'gepland' | 'beheer'
+export type TabKey = 'vandaag' | 'backlog' | 'beheer'
 
 // v3: nav ging van 5 categorie-tabs naar Vandaag/Later + Beheer. Nieuwe key
 // zodat oude, opgeslagen paden naar niet meer bestaande categorie-routes

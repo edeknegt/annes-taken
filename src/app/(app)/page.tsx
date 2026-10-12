@@ -292,10 +292,9 @@ function SectionDropZone({ id, children }: { id: string; children: React.ReactNo
 
 const SECTION_TODAY = 'section-today'
 const SECTION_QUICK = 'section-quick'
-const SECTION_LATER = 'section-later'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main page — Vandaag/Later over alle categorieën heen.
+// Main page — Vandaag/Binnenkort over alle categorieën heen.
 // ─────────────────────────────────────────────────────────────────────────────
 export default function VandaagPage() {
   const supabase = createClient()
@@ -314,7 +313,7 @@ export default function VandaagPage() {
   }
 
   // Nieuwe taak: footer (bottom sheet) met Beschrijving, Categorie en Lijst
-  // (Vandaag/Later) — i.p.v. een inline invoerregel, omdat er nu meer dan
+  // (Vandaag/Binnenkort) — i.p.v. een inline invoerregel, omdat er nu meer dan
   // alleen de naam is in te vullen.
   const [addSheetOpen, setAddSheetOpen] = useState(false)
   // Footer met standaardtaken (losse taken en sets) om snel toe te voegen.
@@ -467,8 +466,8 @@ export default function VandaagPage() {
       }
     }
 
-    // 'once' — de geplande taken (Gepland-tab): eenmalig op een vaste datum.
-    // De dag ervoor staan ze alvast in Snel, op de dag zelf in Vandaag, met
+    // 'once' — de geplande taken uit de Backlog: eenmalig op een vaste datum.
+    // De dag ervoor staan ze alvast in Binnenkort, op de dag zelf in Vandaag, met
     // precies de naam die je hebt ingevoerd.
     const GEPLAND_LEAD_DAYS = 1
     const onceRules = allRules.filter(r => r.active && r.rule_type === 'once' && r.first_due_at)
@@ -552,7 +551,6 @@ export default function VandaagPage() {
     visibleTasks.filter(t => t.list === list).sort((a, b) => a.manual_sort_order - b.manual_sort_order)
   const todayTasks = byList('today')
   const quickTasks = byList('quick')
-  const laterTasks = byList('later')
   const checkedCount = visibleTasks.filter(t => t.checked_at !== null).length
 
   // ---------------------------------------------------------------------------
@@ -599,12 +597,14 @@ export default function VandaagPage() {
     await supabase.from('tasks').delete().in('id', toDelete)
   }
 
-  const openAddSheet = () => {
+  // De plus van een sectie bepaalt in welke lijst de taak belandt; in de
+  // footer kun je daarna alsnog wisselen.
+  const openAddSheet = (list: TaskList) => {
     // Bij precies één actieve filterchip pakken we die als default-
     // categorie, anders (geen of meerdere chips actief) de stille default.
     setNewTaskName('')
     setNewTaskCategory(selectedCategories.length === 1 ? selectedCategories[0] : DEFAULT_CATEGORY)
-    setNewTaskList('today')
+    setNewTaskList(list)
     setAddSheetOpen(true)
     setTimeout(() => newTaskNameRef.current?.focus(), 50)
   }
@@ -684,11 +684,10 @@ export default function VandaagPage() {
     setAddedPresetsNow(prev => ({ ...prev, [key]: insertedTasks.map(t => t.id) }))
   }
 
-  // Slepen tussen (en binnen) Vandaag/Snel/Later. Werkt op de huidige,
+  // Slepen tussen (en binnen) Vandaag/Binnenkort. Werkt op de huidige,
   // eventueel gefilterde weergave — bij een actieve categoriefilter wordt
   // de volgorde dus alleen binnen die filter opnieuw genummerd.
-  const tasksByList = (list: TaskList) =>
-    list === 'today' ? todayTasks : list === 'quick' ? quickTasks : laterTasks
+  const tasksByList = (list: TaskList) => (list === 'today' ? todayTasks : quickTasks)
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
@@ -697,10 +696,10 @@ export default function VandaagPage() {
     const activeTask = tasks.find(t => t.id === active.id)
     if (!activeTask) return
 
-    const overIsSection = over.id === SECTION_TODAY || over.id === SECTION_QUICK || over.id === SECTION_LATER
+    const overIsSection = over.id === SECTION_TODAY || over.id === SECTION_QUICK
     const overTask = overIsSection ? null : tasks.find(t => t.id === over.id)
     const destList: TaskList = overIsSection
-      ? (over.id === SECTION_TODAY ? 'today' : over.id === SECTION_QUICK ? 'quick' : 'later')
+      ? (over.id === SECTION_TODAY ? 'today' : 'quick')
       : (overTask ? overTask.list : activeTask.list)
     const sameSection = destList === activeTask.list
 
@@ -729,12 +728,12 @@ export default function VandaagPage() {
     )
   }
 
-  // Zet Vandaag en Later (elk apart) op volgorde van categorie, en binnen
+  // Zet Vandaag en Binnenkort (elk apart) op volgorde van categorie, en binnen
   // een categorie op naam (A-Z) — net als de "Loopvolgorde"-knop bij de
   // boodschappenlijst van Anne's keuken.
   const sortByCategory = async () => {
     // Alleen op categorie sorteren — binnen een categorie blijft de
-    // bestaande onderlinge volgorde staan. `todayTasks`/`laterTasks` staan
+    // bestaande onderlinge volgorde staan. `todayTasks`/`quickTasks` staan
     // al in de huidige weergavevolgorde, en Array#sort is stable, dus een
     // sort die alleen op categorie vergelijkt behoudt die volgorde binnen
     // gelijke categorieën vanzelf.
@@ -743,7 +742,7 @@ export default function VandaagPage() {
         .sort((a, b) => (CATEGORY_ORDER[a.category] ?? 999) - (CATEGORY_ORDER[b.category] ?? 999))
         .map((t, i) => ({ ...t, manual_sort_order: i }))
 
-    const updated = [...sortSection(todayTasks), ...sortSection(quickTasks), ...sortSection(laterTasks)]
+    const updated = [...sortSection(todayTasks), ...sortSection(quickTasks)]
     const updatedById = new Map(updated.map(t => [t.id, t]))
     setTasks(prev => prev.map(t => updatedById.get(t.id) ?? t))
 
@@ -829,11 +828,11 @@ export default function VandaagPage() {
       <div className="h-32 sm:h-36 lg:h-40" aria-hidden />
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <section className="mt-4 pb-24 space-y-6">
+        <section className="mt-4 pb-24 space-y-10">
           <div>
             {/* De standaardtaken-knop staat bewust naast deze kop: wat je daar
                 kiest, komt in Vandaag terecht. Onderlangs uitgelijnd, zodat het
-                woord Vandaag even ver boven zijn lijst staat als Snel en Later
+                woord Vandaag even ver boven zijn lijst staat als Binnenkort
                 — de knop is hoger dan de kop en zou de regel anders oprekken.
                 De knop zelf houdt met mb-1 wat extra lucht onder zich. */}
             <div className="mb-2 px-1 flex items-end justify-between gap-2">
@@ -849,103 +848,88 @@ export default function VandaagPage() {
                 Standaardtaak
               </button>
             </div>
-            <SectionDropZone id={SECTION_TODAY}>
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                {todayTasks.length === 0 && (
-                  <p className="px-4 py-8 text-center text-sm text-gray-400">
-                    Nog niets voor vandaag — sleep iets van Later, of voeg direct een taak toe.
-                  </p>
-                )}
-                {todayTasks.length > 0 && (
-                  <SortableContext items={todayTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                    {todayTasks.map(task => (
-                      <SortableTask
-                        key={task.id}
-                        task={task}
-                        onToggle={toggleChecked}
-                        onDelete={deleteTask}
-                        onRename={renameTask}
-                        onChangeCategory={setCategoryPickerTask}
-                      />
-                    ))}
-                  </SortableContext>
-                )}
-              </div>
-            </SectionDropZone>
+            {/* De plus hangt half over de onderrand van de kaart, net als bij
+                de boodschappenlijst in Anne's keuken. Vandaar relative hier en
+                ruimte eronder in de sectie-spacing. */}
+            <div className="relative">
+              <SectionDropZone id={SECTION_TODAY}>
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                  {todayTasks.length === 0 && (
+                    <p className="px-4 py-8 text-center text-sm text-gray-400">
+                      Nog niets voor vandaag — haal iets uit de Backlog, of voeg direct een taak toe.
+                    </p>
+                  )}
+                  {todayTasks.length > 0 && (
+                    <SortableContext items={todayTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                      {todayTasks.map(task => (
+                        <SortableTask
+                          key={task.id}
+                          task={task}
+                          onToggle={toggleChecked}
+                          onDelete={deleteTask}
+                          onRename={renameTask}
+                          onChangeCategory={setCategoryPickerTask}
+                        />
+                      ))}
+                    </SortableContext>
+                  )}
+                </div>
+              </SectionDropZone>
+              <button
+                type="button"
+                onClick={() => openAddSheet('today')}
+                className="absolute -bottom-5 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-mint-500 text-mint-950 shadow-md shadow-mint-900/25 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
+                aria-label="Nieuwe taak in Vandaag"
+                title="Nieuwe taak in Vandaag"
+              >
+                <Plus className="h-5 w-5" strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
 
           <div>
             <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Snel
+              Binnenkort
             </h2>
-            <SectionDropZone id={SECTION_QUICK}>
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                {quickTasks.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-sm text-gray-400">
-                    Niets in Snel.
-                  </p>
-                ) : (
-                  <SortableContext items={quickTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                    {quickTasks.map(task => (
-                      <SortableTask
-                        key={task.id}
-                        task={task}
-                        onToggle={toggleChecked}
-                        onDelete={deleteTask}
-                        onRename={renameTask}
-                        onChangeCategory={setCategoryPickerTask}
-                      />
-                    ))}
-                  </SortableContext>
-                )}
-              </div>
-            </SectionDropZone>
-          </div>
-
-          <div>
-            <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Later
-            </h2>
-            <SectionDropZone id={SECTION_LATER}>
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                {laterTasks.length === 0 ? (
-                  <p className="px-4 py-8 text-center text-sm text-gray-400">
-                    Niets in Later.
-                  </p>
-                ) : (
-                  <SortableContext items={laterTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                    {laterTasks.map(task => (
-                      <SortableTask
-                        key={task.id}
-                        task={task}
-                        onToggle={toggleChecked}
-                        onDelete={deleteTask}
-                        onRename={renameTask}
-                        onChangeCategory={setCategoryPickerTask}
-                      />
-                    ))}
-                  </SortableContext>
-                )}
-              </div>
-            </SectionDropZone>
+            <div className="relative">
+              <SectionDropZone id={SECTION_QUICK}>
+                <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                  {quickTasks.length === 0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-gray-400">
+                      Niets voor binnenkort.
+                    </p>
+                  ) : (
+                    <SortableContext items={quickTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                      {quickTasks.map(task => (
+                        <SortableTask
+                          key={task.id}
+                          task={task}
+                          onToggle={toggleChecked}
+                          onDelete={deleteTask}
+                          onRename={renameTask}
+                          onChangeCategory={setCategoryPickerTask}
+                        />
+                      ))}
+                    </SortableContext>
+                  )}
+                </div>
+              </SectionDropZone>
+              <button
+                type="button"
+                onClick={() => openAddSheet('quick')}
+                className="absolute -bottom-5 right-4 z-10 flex items-center justify-center w-10 h-10 rounded-full bg-mint-500 text-mint-950 shadow-md shadow-mint-900/25 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
+                aria-label="Nieuwe taak in Binnenkort"
+                title="Nieuwe taak in Binnenkort"
+              >
+                <Plus className="h-5 w-5" strokeWidth={2.5} />
+              </button>
+            </div>
           </div>
         </section>
       </DndContext>
 
-      {/* FAB — opent de footer om een nieuwe taak toe te voegen. Blijft
-          altijd zichtbaar, verschuift mee boven een open keyboard. */}
-      <button
-        type="button"
-        onClick={openAddSheet}
-        className="fixed z-30 right-4 lg:right-8 bottom-[calc(5rem+env(safe-area-inset-bottom,0px)+var(--keyboard-inset,0px))] lg:bottom-8 flex items-center justify-center w-14 h-14 rounded-full bg-mint-500 text-mint-950 shadow-lg shadow-mint-900/30 hover:bg-mint-600 active:scale-95 transition-all touch-manipulation"
-        aria-label="Nieuwe taak"
-        title="Nieuwe taak"
-      >
-        <Plus className="h-6 w-6" strokeWidth={2.5} />
-      </button>
-
       {/* Footer om een nieuwe taak toe te voegen: Beschrijving, Categorie
-          en Lijst (Vandaag/Later). */}
+          en Lijst (Vandaag/Binnenkort). */}
       <BottomSheet open={addSheetOpen} onClose={() => setAddSheetOpen(false)} title="Nieuwe taak">
         <div className="space-y-4">
           <div>
@@ -992,8 +976,7 @@ export default function VandaagPage() {
               className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
             >
               <option value="today">Vandaag</option>
-              <option value="quick">Snel</option>
-              <option value="later">Later</option>
+              <option value="quick">Binnenkort</option>
             </select>
           </div>
 
