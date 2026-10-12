@@ -49,3 +49,9 @@ export const CATEGORY_ICON: Record<TaskCategory, LucideIcon> = {
   herinneringen: Camera,
   overig: MoreHorizontal,
 }
+
+// Volgorde van de categorieën voor de "sorteer op categorie"-knop, op Taken
+// en in de Backlog.
+export const CATEGORY_ORDER: Record<TaskCategory, number> = Object.fromEntries(
+  TASK_CATEGORIES.map((c, i) => [c.value, i])
+) as Record<TaskCategory, number>

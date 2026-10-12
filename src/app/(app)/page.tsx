@@ -27,7 +27,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { isRuleDue, nextDueAt, formatDayMonth } from '@/lib/recurring'
 import { HARDCODED_GIFT_TASKS, isHardcodedDue } from '@/lib/gift-holidays'
-import { TASK_CATEGORIES, CATEGORY_BADGE_CLASS, CATEGORY_ICON, taskCategoryLabel } from '@/lib/tasks'
+import { TASK_CATEGORIES, CATEGORY_BADGE_CLASS, CATEGORY_ICON, CATEGORY_ORDER, taskCategoryLabel } from '@/lib/tasks'
 import { setTodayCount } from '@/lib/task-counts'
 import type { Task, TaskCategory, TaskList, TaskRule } from '@/lib/types'
 
@@ -35,11 +35,6 @@ import type { Task, TaskCategory, TaskList, TaskRule } from '@/lib/types'
 // als er geen filter actief is — categorie is nu puur een badge/filter, geen
 // verplichte keuze meer.
 const DEFAULT_CATEGORY: TaskCategory = 'huishouden'
-
-// Volgorde van de categorieën voor de "sorteer op categorie"-knop.
-const CATEGORY_ORDER: Record<TaskCategory, number> = Object.fromEntries(
-  TASK_CATEGORIES.map((c, i) => [c.value, i])
-) as Record<TaskCategory, number>
 
 // Standaardtaken: veelvoorkomende, niet-terugkerende taken die je met één tik
 // aan Vandaag toevoegt, samen in één footer (bottom sheet) en gegroepeerd per

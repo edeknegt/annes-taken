@@ -2,13 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { Plus, X, CalendarArrowUp } from 'lucide-react'
+import { Plus, X, CalendarArrowUp, ArrowDownAZ } from 'lucide-react'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { TASK_CATEGORIES, CATEGORY_BADGE_CLASS, CATEGORY_ICON, taskCategoryLabel } from '@/lib/tasks'
+import {
+  TASK_CATEGORIES,
+  CATEGORY_BADGE_CLASS,
+  CATEGORY_ICON,
+  CATEGORY_ORDER,
+  taskCategoryLabel,
+} from '@/lib/tasks'
 import type { Task, TaskCategory, TaskRule } from '@/lib/types'
 
 // De Backlog is alles wat nog niet op de Taken-pagina hoeft te staan:
@@ -331,6 +337,24 @@ export default function BacklogPage() {
     await supabase.from('tasks').delete().eq('id', taskId)
   }
 
+  // Zet de ongeplande taken op volgorde van categorie — net als de knop op de
+  // Taken-pagina. De geplande taken blijven op datum staan; daar is de volgorde
+  // niet van jou maar van de kalender.
+  const sortByCategory = async () => {
+    // Alleen op categorie vergelijken: Array#sort is stabiel, dus binnen een
+    // categorie blijft de bestaande onderlinge volgorde staan.
+    const sorted = [...tasks]
+      .sort((a, b) => (CATEGORY_ORDER[a.category] ?? 999) - (CATEGORY_ORDER[b.category] ?? 999))
+      .map((t, i) => ({ ...t, manual_sort_order: i }))
+
+    setTasks(sorted)
+    await Promise.all(
+      sorted.map(t =>
+        supabase.from('tasks').update({ manual_sort_order: t.manual_sort_order }).eq('id', t.id)
+      )
+    )
+  }
+
   // ---------------------------------------------------------------------------
   // Geplande taken
   // ---------------------------------------------------------------------------
@@ -419,8 +443,18 @@ export default function BacklogPage() {
     <div className="max-w-2xl mx-auto">
       {/* Fixed header — zelfde patroon als Taken en Beheer. */}
       <div className="fixed top-0 left-0 right-0 lg:left-64 z-20 bg-mint-100 px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-8 pb-4">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
           <h1 className="page-title truncate">Backlog</h1>
+          <button
+            type="button"
+            onClick={sortByCategory}
+            disabled={tasks.length === 0}
+            className="flex items-center justify-center w-9 h-9 rounded-full bg-white/70 hover:bg-white text-gray-500 hover:text-gray-700 disabled:opacity-40 disabled:pointer-events-none border border-gray-200 shrink-0"
+            title="Sorteer de ongeplande taken op categorie"
+            aria-label="Sorteer de ongeplande taken op categorie"
+          >
+            <ArrowDownAZ className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
