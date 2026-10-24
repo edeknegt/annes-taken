@@ -1,9 +1,10 @@
 import 'server-only'
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
+import { DB_SCHEMA, type AppSupabaseClient } from '@/lib/supabase/schema'
 
-let cached: SupabaseClient | null = null
+let cached: AppSupabaseClient | null = null
 
-export function createAdminClient(): SupabaseClient {
+export function createAdminClient(): AppSupabaseClient {
   if (cached) return cached
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -16,6 +17,7 @@ export function createAdminClient(): SupabaseClient {
   }
 
   cached = createClient(url, serviceKey, {
+    db: { schema: DB_SCHEMA },
     auth: { persistSession: false, autoRefreshToken: false },
   })
   return cached
