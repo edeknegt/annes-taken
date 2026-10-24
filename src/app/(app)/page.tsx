@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom'
 import { Plus, Check, X, Trash2, ArrowDownAZ, ListPlus } from 'lucide-react'
 import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   DndContext,
   closestCenter,
@@ -307,9 +308,9 @@ export default function VandaagPage() {
     )
   }
 
-  // Nieuwe taak: footer (bottom sheet) met Beschrijving, Categorie en Lijst
-  // (Vandaag/Binnenkort) — i.p.v. een inline invoerregel, omdat er nu meer dan
-  // alleen de naam is in te vullen.
+  // Nieuwe taak: footer (bottom sheet) met Lijst (Vandaag/Binnenkort), Taak en
+  // Categorie — i.p.v. een inline invoerregel, omdat er nu meer dan alleen de
+  // naam is in te vullen.
   const [addSheetOpen, setAddSheetOpen] = useState(false)
   // Footer met standaardtaken (losse taken en sets) om snel toe te voegen.
   // addedPresets onthoudt per standaardtaak welke taken je deze keer hebt
@@ -926,41 +927,9 @@ export default function VandaagPage() {
       {/* Footer om een nieuwe taak toe te voegen: Beschrijving, Categorie
           en Lijst (Vandaag/Binnenkort). */}
       <BottomSheet open={addSheetOpen} onClose={() => setAddSheetOpen(false)} title="Nieuwe taak">
+        {/* Zelfde opzet als de footers in de Backlog: lijst, taak, categorie —
+            de categorie als knoppen, niet als uitklaplijst. */}
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Beschrijving
-            </label>
-            <input
-              ref={newTaskNameRef}
-              value={newTaskName}
-              onChange={(e) => setNewTaskName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && newTaskName.trim() && !adding) {
-                  e.preventDefault()
-                  addTask()
-                }
-              }}
-              placeholder="bijv. planten water geven"
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500 placeholder:text-gray-400"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Categorie
-            </label>
-            <select
-              value={newTaskCategory}
-              onChange={(e) => setNewTaskCategory(e.target.value as TaskCategory)}
-              className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-mint-200 focus:border-mint-500"
-            >
-              {TASK_CATEGORIES.map(c => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Lijst
@@ -975,7 +944,52 @@ export default function VandaagPage() {
             </select>
           </div>
 
-          <div className="flex justify-end gap-3 pt-2">
+          <Input
+            ref={newTaskNameRef}
+            label="Taak"
+            value={newTaskName}
+            onChange={(e) => setNewTaskName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newTaskName.trim() && !adding) {
+                e.preventDefault()
+                addTask()
+              }
+            }}
+            placeholder="Bijv. Planten water geven"
+          />
+
+          <div>
+            <span className="block text-sm font-medium text-gray-700 mb-1">Categorie</span>
+            <div className="grid grid-cols-2 gap-1.5">
+              {TASK_CATEGORIES.map(c => {
+                const Icon = CATEGORY_ICON[c.value]
+                const selected = newTaskCategory === c.value
+                return (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => setNewTaskCategory(c.value)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left',
+                      selected ? 'bg-mint-500 text-mint-950' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'flex items-center justify-center h-6 w-6 rounded-full shrink-0',
+                        CATEGORY_BADGE_CLASS[c.value]
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    </span>
+                    <span className="truncate">{c.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-1">
             <Button variant="outline" onClick={() => setAddSheetOpen(false)}>
               Annuleren
             </Button>
