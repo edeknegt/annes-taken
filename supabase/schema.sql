@@ -1,14 +1,36 @@
 -- =============================================================================
--- Anne's taken - Tasks Schema
+-- Anne's taken - Volledig databaseschema (schema annes_taken)
 -- =============================================================================
--- Taken met 5 vaste categorieen (huishouden, werk, inkopen, cadeaus,
--- overig) en herhaalregels (vast patroon / na afvinken / jaarlijks).
+-- Draai dit in de SQL Editor van het Supabase-project 'annes-apps' om het
+-- schema vanaf nul op te bouwen: tabellen, indexen, triggers en
+-- RLS-policies. Taken en taakregels zijn gebruikersdata en zitten hier niet in.
+--
+-- annes-apps wordt gedeeld met annes-keuken en ak-verloskundige; elke app
+-- heeft een eigen schema. Na het draaien: voeg 'annes_taken' toe bij
+-- Settings -> Data API -> Exposed schemas, anders geeft de API
+-- "Invalid schema".
+--
+-- Nieuwe wijzigingen: pas dit bestand aan zodat het de actuele stand blijft
+-- beschrijven, en draai de wijziging los (ALTER ...) op de live database.
 -- =============================================================================
 
+BEGIN;
+
+CREATE SCHEMA IF NOT EXISTS annes_taken;
+SET LOCAL search_path = annes_taken;
+
 -- ---------------------------------------------------------------------------
--- 0. Gedeelde trigger-functie: auto-update van updated_at bij wijzigingen.
+-- Rechten voor de Data API-rollen
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+GRANT USAGE ON SCHEMA annes_taken TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA annes_taken GRANT ALL ON TABLES    TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA annes_taken GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA annes_taken GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
+
+-- ---------------------------------------------------------------------------
+-- Trigger-functie: auto-update van updated_at bij wijzigingen
+-- ---------------------------------------------------------------------------
+CREATE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = now();
@@ -17,7 +39,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ---------------------------------------------------------------------------
--- 1. TASK_RULES - Herhaalregels die automatisch een taak aanmaken zodra due
+-- TASK_RULES - Herhaalregels die automatisch een taak aanmaken zodra due
 -- ---------------------------------------------------------------------------
 -- rule_type bepaalt welke velden van toepassing zijn:
 --   fixed            -> vast patroon: interval_n + recur_unit (dag/week/
@@ -46,28 +68,42 @@ $$ LANGUAGE plpgsql;
 --                       first_due_at, met een description. Verschijnt die
 --                       dag direct in Vandaag (niet Later) en wordt na
 --                       materialiseren gedeactiveerd, net als 'workday'.
+--
+-- Categorieen: administratie = uitzoeken en regelen (papieren, aanvragen,
+-- vergelijken); herinneringen = vastleggen en bewaren (fotoboek, groeiboek,
+-- brieven).
 -- ---------------------------------------------------------------------------
 CREATE TABLE task_rules (
     id                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    category          text        NOT NULL CHECK (category IN ('huishouden', 'werk', 'inkopen', 'cadeaus', 'overig', 'berichten')),
+    category          text        NOT NULL,
     name              text        NOT NULL,
     description       text,
-    rule_type         text        NOT NULL CHECK (rule_type IN ('fixed', 'after_completion', 'yearly', 'workday', 'after_workday', 'once')),
+    rule_type         text        NOT NULL,
     interval_n        integer     NOT NULL DEFAULT 1 CHECK (interval_n >= 1),
-    recur_unit        text        CHECK (recur_unit IN ('day', 'week', 'month')),
+    recur_unit        text,
     first_due_at      date,
     day_of_month      integer,
-    weekday           integer     CHECK (weekday BETWEEN 0 AND 6),
+    weekday           integer,
     month             integer,
     birth_year        integer,
-    shift_type        text        CHECK (shift_type IN ('dienst', 'spreekuur')),
+    shift_type        text,
     gift              boolean     NOT NULL DEFAULT true,
     card              boolean     NOT NULL DEFAULT true,
     last_triggered_at timestamptz,
     active            boolean     NOT NULL DEFAULT true,
     created_at        timestamptz DEFAULT now(),
 
-    CHECK (
+    CONSTRAINT task_rules_category_check
+        CHECK (category IN ('huishouden', 'werk', 'inkopen', 'cadeaus', 'berichten', 'administratie', 'herinneringen', 'overig')),
+    CONSTRAINT task_rules_rule_type_check
+        CHECK (rule_type IN ('fixed', 'after_completion', 'yearly', 'workday', 'after_workday', 'once')),
+    CONSTRAINT task_rules_recur_unit_check
+        CHECK (recur_unit IS NULL OR recur_unit IN ('day', 'week', 'month')),
+    CONSTRAINT task_rules_shift_type_check
+        CHECK (shift_type IS NULL OR shift_type IN ('dienst', 'spreekuur')),
+    CONSTRAINT task_rules_weekday_check
+        CHECK (weekday IS NULL OR weekday BETWEEN 0 AND 6),
+    CONSTRAINT task_rules_check CHECK (
         (rule_type = 'fixed'            AND recur_unit IS NOT NULL AND month IS NULL AND shift_type IS NULL
                                          AND (day_of_month IS NULL OR (recur_unit = 'month' AND day_of_month BETWEEN 1 AND 28))
                                          AND (weekday IS NULL OR recur_unit = 'week')
@@ -85,29 +121,34 @@ CREATE TABLE task_rules (
 CREATE INDEX idx_task_rules_active ON task_rules (active);
 
 -- ---------------------------------------------------------------------------
--- 2. TASKS - Losse en automatisch-gematerialiseerde (uit een task_rule) taken
+-- TASKS - Losse en automatisch-gematerialiseerde (uit een task_rule) taken
 -- ---------------------------------------------------------------------------
 -- Een terugkerende taak wordt automatisch aangemaakt zodra de bijbehorende
 -- task_rule due is; na afvinken verdwijnt hij (via opschonen) en komt hij
--- vanzelf terug op de eerstvolgende due-datum. manual_sort_order bepaalt de
--- slepen-volgorde binnen een categorie.
+-- vanzelf terug op de eerstvolgende due-datum.
+--
+-- list = Vandaag/Snel/Later: in welke sectie op de Taken-pagina de taak staat
+-- (default 'later' voor nieuw gematerialiseerde herhaalde taken).
+-- manual_sort_order is de sleepvolgorde binnen die sectie; categorie is puur
+-- een badge/filter.
 -- ---------------------------------------------------------------------------
 CREATE TABLE tasks (
     id                uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    category          text        NOT NULL CHECK (category IN ('huishouden', 'werk', 'inkopen', 'cadeaus', 'overig', 'berichten')),
+    category          text        NOT NULL,
     name              text        NOT NULL,
     -- Alleen gevuld voor uit een 'once'-bericht gematerialiseerde taken.
     description       text,
     manual_sort_order integer     NOT NULL DEFAULT 0,
     checked_at        timestamptz,
-    task_rule_id      uuid                 REFERENCES task_rules (id) ON DELETE SET NULL,
-    -- Vandaag/Snel/Later: in welke sectie op de Taken-pagina de taak
-    -- staat (default 'later' voor nieuw gematerialiseerde herhaalde taken).
-    -- manual_sort_order is de sleepvolgorde binnen die sectie, niet meer per
-    -- categorie — categorie is nu puur een badge/filter.
-    list              text        NOT NULL DEFAULT 'later' CHECK (list IN ('today', 'quick', 'later')),
+    task_rule_id      uuid        REFERENCES task_rules (id) ON DELETE SET NULL,
+    list              text        NOT NULL DEFAULT 'later',
     created_at        timestamptz DEFAULT now(),
-    updated_at        timestamptz DEFAULT now()
+    updated_at        timestamptz DEFAULT now(),
+
+    CONSTRAINT tasks_category_check
+        CHECK (category IN ('huishouden', 'werk', 'inkopen', 'cadeaus', 'berichten', 'administratie', 'herinneringen', 'overig')),
+    CONSTRAINT tasks_list_check
+        CHECK (list IN ('today', 'quick', 'later'))
 );
 
 CREATE INDEX idx_tasks_category      ON tasks (category);
@@ -120,7 +161,7 @@ CREATE TRIGGER trigger_tasks_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- ---------------------------------------------------------------------------
--- 3. GIFT_HOLIDAY_TRIGGERS - Voortgang van de 4 vaste, hardcoded
+-- GIFT_HOLIDAY_TRIGGERS - Voortgang van de vaste, hardcoded
 --    cadeau-herinneringen (Vaderdag/Moederdag, zie src/lib/gift-holidays.ts).
 --    Deze feestdagen vallen niet op een vaste dag-van-de-maand (Nde zondag),
 --    passen dus niet in task_rules; alleen de laatst-getriggerde datum per
@@ -131,18 +172,27 @@ CREATE TABLE gift_holiday_triggers (
     last_triggered_at timestamptz
 );
 
--- ===========================================================================
--- ROW LEVEL SECURITY - Permissief, zoals elders in de app
--- ===========================================================================
+-- =============================================================================
+-- ROW LEVEL SECURITY
+-- =============================================================================
+-- De app gebruikt PIN-bescherming op applicatieniveau (met de anon key en
+-- de service role key), dus alle tabellen krijgen een permissieve policy.
+-- =============================================================================
+DO $$
+DECLARE
+    t text;
+BEGIN
+    FOREACH t IN ARRAY ARRAY['task_rules', 'tasks', 'gift_holiday_triggers']
+    LOOP
+        EXECUTE format('ALTER TABLE annes_taken.%I ENABLE ROW LEVEL SECURITY', t);
+        EXECUTE format('CREATE POLICY %I ON annes_taken.%I FOR ALL USING (true) WITH CHECK (true)',
+                       'Allow all access to ' || t, t);
+    END LOOP;
+END $$;
 
-ALTER TABLE task_rules ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all access to task_rules"
-    ON task_rules FOR ALL USING (true) WITH CHECK (true);
+GRANT ALL ON ALL TABLES IN SCHEMA annes_taken TO anon, authenticated, service_role;
 
-ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all access to tasks"
-    ON tasks FOR ALL USING (true) WITH CHECK (true);
+COMMIT;
 
-ALTER TABLE gift_holiday_triggers ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all access to gift_holiday_triggers"
-    ON gift_holiday_triggers FOR ALL USING (true) WITH CHECK (true);
+-- PostgREST het schema-overzicht opnieuw laten inlezen
+NOTIFY pgrst, 'reload schema';
